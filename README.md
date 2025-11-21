@@ -20,6 +20,24 @@ Le dataset contient **60 000 images couleur 32×32** réparties en **10 classes*
 
 ---
 
+## Structure du projet
+deepvision-cifar10-classifier/  
+├── .gitignore                          # Fichiers et dossiers ignorés par Git  
+├── models/                             # Modèles entraînés sauvegardés  
+│   ├── cnn_baseline_cifar10.h5         # Modèle CNN baseline (32×32, entraîné from scratch)  
+│   └── efficientnetb0_tl_cifar10.h5     # Modèle EfficientNetB0 (transfer learning + fine-tuning)  
+│
+├── 01_cifar10_cnn.ipynb                # Notebook Jupyter complet :  
+│                                       # - Exploration des données  
+│                                       # - Modèle CNN baseline  
+│                                       # - Modèle EfficientNetB0 (TL)  
+│                                       # - Évaluations, courbes & matrices de confusion  
+│
+├── README.md                           # Présentation générale du projet (documentation principale)
+└── (éventuels futurs fichiers : data/, src/, reports/, etc.)
+
+---
+
 ## Modèles développés
 
 ### **1️⃣ CNN baseline (entraînement from scratch)**  
