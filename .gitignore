@@ -1,5 +1,18 @@
-# Environnement virtuel
+# Environnement virtuel (ne jamais envoyer sur GitHub)
 .venv/
+venv/
+env/
 
-# Données
+# Fichiers temporaires Python (inutiles)
+__pycache__/
+*.py[cod]
+
+# Fichiers temporaires Jupyter/Colab (brouillons)
+.ipynb_checkpoints/
+
+# Données (trop lourd pour GitHub)
 data/
+
+# Fichiers système
+.DS_Store
+Thumbs.db

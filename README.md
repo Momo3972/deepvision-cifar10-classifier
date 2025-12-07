@@ -1,84 +1,112 @@
-# Classification d’Images CIFAR-10 avec CNN et Transfer Learning (EfficientNetB0)
+# Classification d'Images CIFAR-10 : Benchmark Deep Learning
 
-Ce projet explore la classification d’images issues du dataset CIFAR-10 en utilisant :
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python)
+![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-orange?style=for-the-badge&logo=tensorflow)
+![Keras](https://img.shields.io/badge/Keras-Transfer%20Learning-red?style=for-the-badge&logo=keras)
+![Streamlit](https://img.shields.io/badge/App-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit)
+![Status](https://img.shields.io/badge/Status-Terminé-green?style=for-the-badge)
 
-- un modèle **CNN construit from scratch** (baseline)
-- un modèle **EfficientNetB0** pré-entraîné (Transfer Learning + Fine-Tuning)
-
-L’objectif est de comparer les performances des deux approches et de montrer l’impact du Transfer Learning sur un problème réel de vision par ordinateur.
-
----
-
-## Dataset : CIFAR-10
-
-Le dataset contient **60 000 images couleur 32×32** réparties en **10 classes** :
-
-`airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck`
-
-- 50 000 images pour l’entraînement  
-- 10 000 images pour le test  
+Ce projet présente un pipeline complet de Vision par Ordinateur (Computer Vision) appliqué au dataset académique CIFAR-10. Il compare rigoureusement trois architectures de réseaux de neurones pour démontrer la supériorité des techniques modernes de Transfer Learning et de Data Augmentation.
 
 ---
 
-## Modèles développés
+## Objectifs Contexte
 
-### **1️⃣ CNN baseline (entraînement from scratch)**  
-- 3 blocs Convolution + MaxPooling  
-- Dense + Dropout  
-- Accuracy test ≈ **0.70**
+L'objectif est de classifier des images de 32x32 pixels en 10 catégories mutuellement exclusives (Avion, Voiture, Chat, Chien, etc.). La démarche suit une progression logique, du modèle le plus simple au plus complexe, pour illustrer les gains de performance.
 
-### **2️⃣ EfficientNetB0 (Transfer Learning + Fine-Tuning)**  
-- Backbone gelé (phase 1)  
-- Fine-tuning partiel (phase 2)  
-- Accuracy test ≈ **0.95**
-
-**➡️ Gain absolu d’accuracy : +0.24**
+### Architectures comparées
+1.  **MLP (Baseline) :** Perceptron Multicouche pour établir un score de référence
+2.  **CNN Custom (From Scratch) :** Architecture convolutive de type VGG (Conv2D + MaxPooling + BatchNormalization)
+3.  **EfficientNetB0 (État de l'Art) :** Utilisation de Transfer Learning (poids ImageNet) combiné au Fine-Tuning et à la Data Augmentation
 
 ---
 
-## Résultats principaux
+## Méthodologie & Stack Technique
 
-| Modèle | Test Accuracy | Test Loss |
-|--------|--------------|-----------|
-| CNN baseline | ~0.70 | ~0.86 |
-| EfficientNetB0 TL | ~0.95 | ~0.16 |
+Ce projet respecte les standards MLOps et les bonnes pratiques de Data Science :
 
-✔ Le Transfer Learning surpasse largement le CNN baseline  
-✔ Stabilité accrue sur toutes les classes  
-✔ Matrices de confusion beaucoup plus propres
-
----
-
-## Organisation du projet
-
-- `01_cifar10_cnn.ipynb` — Notebook complet contenant :
-  - Préparation du dataset
-  - Construction du CNN
-  - Construction du modèle EfficientNetB0
-  - Entraînement en 2 phases
-  - Visualisation des courbes
-  - Classification report
-  - Matrices de confusion
-  - Sauvegarde des modèles
-
-- `cnn_baseline_cifar10.h5` — Modèle CNN sauvegardé  
-- `efficientnetb0_tl_cifar10.h5` — Modèle TL sauvegardé  
+* **Data Engineering :**
+    * Split rigoureux **80% Train / 20% Test** avec stratification (respect de la distribution des classes)
+    * Normalisation des données et encodage One-Hot des labels
+    * Pipeline de **Data Augmentation** (Rotation, Zoom, Contraste, Flip) intégré au modèle final pour réduire le sur-apprentissage
+* **Optimisation :**
+    * Utilisation de l'optimiseur **Adam**
+    * Callbacks pour le pilotage : `EarlyStopping` (arrêt précoce) et `ReduceLROnPlateau` (ajustement du taux d'apprentissage).
+* **Évaluation :**
+    * Analyse des courbes d'apprentissage (Loss/Accuracy)
+    * Matrices de confusion et Rapports de classification (F1-Score)
 
 ---
 
-## Conclusion
+## Organisation du Projet
 
-Le projet démontre clairement la puissance du Transfer Learning :
+Voici comment est structuré le dépôt :
 
-- convergence beaucoup plus rapide  
-- accuracy très élevée  
-- stabilité inter-classe  
-- généralisation nettement améliorée  
-
-Ce pipeline complet sert de base solide pour tout projet de vision basé sur la classification d’images.
+```text
+deepvision-cifar10-classifier/
+│
+├── models/
+│   └── best_model_efficientnet_aug.h5   # Le modèle final entraîné (93% acc)
+│
+├── notebooks/
+│   └── Projet_Vision_CIFAR10.ipynb      # Le code complet (EDA, Training, Eval)
+│
+├── app.py                               # Application de démonstration (Streamlit)
+├── requirements.txt                     # Liste des dépendances Python
+└── README.md                            # Documentation du projet
 
 ---
 
-## Auteur
+## Résultats et Analyse
 
-Projet réalisé par **Mohamed Lamine OULD BOUYA**, Data Scientist
+Les performances ont été évaluées sur le jeu de test (données jamais vues durant l'entraînement) :
+
+| Modèle         | Architecture              | Technique            | Accuracy (Test) | Notes |
+|----------------|---------------------------|----------------------|-----------------|-------|
+| **MLP**         | Dense (Fully Connected)   | Baseline             | ~48%            | — |
+| **CNN Custom**  | From Scratch              | ~75%                 | ~75%            | Bonne détection des formes, mais limité par la taille du dataset. |
+| **EfficientNetB0** | TL + Augmentation     | 93% 🚀               | 93%             | Performance État de l'Art. |
+
+---
+
+## Impact de la Data Augmentation
+
+L'ajout de transformations aléatoires a réduit les confusions entre classes morphologiquement proches, améliorant nettement la robustesse du modèle
+
+| Classe | F1-Score |
+|--------|----------|
+| Chat 🐱 | ↑ 0.87 |
+| Chien 🐶 | ↑ 0.90 |
+| Oiseau 🐦 | ↑ 0.93 |
+
+**Note :** Une matrice de confusion détaillée est disponible à la fin du notebook pour visualiser ces résultats
+
+---
+
+## Installation et Utilisation
+
+Vous pouvez tester le modèle directement sur votre machine via l'interface graphique
+
+### 1. Cloner le projet
+```bash
+git clone https://github.com/VOTRE_NOM_UTILISATEUR/deepvision-cifar10-classifier.git
+cd deepvision-cifar10-classifier
+
+### 2. Installer les dépendances
+
+Il est recommandé d'utiliser un environnement virtuel
+
+pip install -r requirements.txt
+
+### 3. Lancer l'application de démo
+
+streamlit run app.py
+
+Une page web s'ouvrira automatiquement. Vous pourrez y glisser n'importe quelle image (d'un avion, d'un chat, etc.) et voir l'IA la classifier en temps réel avec son indice de confiance.
+
+👤 Auteur
+Projet réalisé par : Mohamed Lamine OULD BOUYA
+Data Scientist / Ingénieur Deep Learning
+[Lien Portfolio] : https://github.com/Momo3972/Portfolio-Data-IA
+
+Dernière mise à jour : Décembre 2025 - Propulsé par TensorFlow & Streamlit
