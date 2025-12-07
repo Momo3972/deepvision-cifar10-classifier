@@ -67,11 +67,11 @@ deepvision-cifar10-classifier/
 
 ## Résultats et analyse
 
-| Modèle              | Architecture              | Technique            | Accuracy Test | Notes |
+| Modèle              | Architecture              | Technique            | Accuracy Test | Observations |
 |--------------------|---------------------------|----------------------|----------------|-------|
-| **MLP**             | Fully Connected           | Baseline             | ~48%           | — |
-| **CNN Custom**      | From Scratch              | —                    | ~75%           | Limité par la taille du dataset |
-| **EfficientNetB0**  | TL + Data Augmentation    | Fine‑Tuning          | **93%**     | Meilleure performance |
+| **MLP**             | Fully Connected           | Baseline             | ~48%           | Limité par la perte de structure spatiale (Flatten) |
+| **CNN Custom**      | From Scratch              | From Scratch                   | ~75%           | Bonne détection des formes, mais limité par la taille du dataset |
+| **EfficientNetB0**  | TL + Data Augmentation    | Fine‑Tuning          | **93%**     | Performance excellente |
 
 ---
 
@@ -115,7 +115,7 @@ Vous pourrez y glisser une image (chat, avion, chien, etc.) pour obtenir une pr�
 
 ---
 
-## 👤 Auteur
+## Auteur
 
 Projet réalisé par **Mohamed Lamine OULD BOUYA**  
 Data Scientist / Ingénieur Deep Learning  
