@@ -1,0 +1,124 @@
+# ===========================================================================
+# pyproject.toml - deepvision-cifar10-classifier
+# PEP 621 — Configuration unifiée du projet Python
+# ---------------------------------------------------------------------------
+# État Phase 0 : squelette minimal (sera enrichi en Phase 1).
+# ===========================================================================
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepvision-cifar10-classifier"
+version = "0.0.1"
+description = "Industrial Computer Vision pipeline on CIFAR-10 with EfficientNetB0 transfer learning, MLflow, FastAPI, Docker, and CI/CD."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Mohamed Lamine OULD BOUYA", email = "ouldbouya.mohamedlamine@gmail.com" }
+]
+keywords = [
+    "computer-vision",
+    "deep-learning",
+    "transfer-learning",
+    "efficientnet",
+    "cifar-10",
+    "mlops",
+    "tensorflow",
+    "keras",
+    "fastapi",
+    "streamlit",
+    "onnx",
+    "tflite"
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+]
+
+# Les dépendances pinnées sont dans requirements.txt pour la Phase 0.
+# La migration vers [project.dependencies] + pip-tools sera faite en Phase 1.
+dynamic = ["dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/Momo3972/deepvision-cifar10-classifier"
+Repository = "https://github.com/Momo3972/deepvision-cifar10-classifier"
+Issues = "https://github.com/Momo3972/deepvision-cifar10-classifier/issues"
+Portfolio = "https://github.com/Momo3972/Portfolio-Data-IA"
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+# ---------------------------------------------------------------------------
+# Configuration des outils de qualité (à activer en Phase 1)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "build", "dist", "notebooks"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "N",    # pep8-naming
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (géré par formatter)
+    "B008",   # mutable default args (FastAPI Depends)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # imports inutilisés OK dans __init__
+"tests/*" = ["B011"]       # asserts OK dans les tests
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--showlocals",
+    "--tb=short",
+]
+markers = [
+    "slow: tests longs (>5s)",
+    "integration: tests d'intégration",
+    "benchmark: tests de performance",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/deepvision"]
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
+    "*/conftest.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+precision = 2
