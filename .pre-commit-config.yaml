@@ -1,0 +1,41 @@
+# ============================================================================
+# .pre-commit-config.yaml - deepvision-cifar10-classifier
+# Local Git hooks running on every commit.
+# Install once: pre-commit install
+# Run manually: pre-commit run --all-files
+# ============================================================================
+
+default_language_version:
+  python: python3.12
+
+repos:
+  # ---------------------------- Generic hygiene ----------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]   # block accidental commits of files >1 MB
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+        args: ["--allow-multiple-documents"]
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: detect-private-key
+
+  # --------------------------- Ruff (lint+format) --------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.5
+    hooks:
+      - id: ruff
+        args: ["--fix", "--exit-non-zero-on-fix"]
+      - id: ruff-format
+
+  # ---------------------------- Secret detection ---------------------------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks

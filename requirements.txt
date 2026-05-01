@@ -1,27 +1,31 @@
 # ===========================================================================
 # requirements.txt - deepvision-cifar10-classifier
-# Versions pinnées pour reproductibilité (Phase 0 baseline)
+# Versions pinnees pour reproductibilite (Phase 1 packaging)
 # Python : 3.12
-# Plateforme cible : Windows 10/11 + Linux (x86_64) — CPU only
+# Plateforme cible : Windows 10/11 + Linux (x86_64) - CPU only
 # ---------------------------------------------------------------------------
-# Phase 1 introduira pyproject.toml + pip-tools pour figer les transitives.
-# Pour les outils dev (pytest, ruff, mlflow, fastapi, ...), voir
-# requirements-dev.txt (ajouté lors de la Phase 1).
+# Pour les outils dev (pytest, ruff, mypy, pre-commit, bandit, pip-audit),
+# voir requirements-dev.txt.
+# Phase 5 introduira pip-tools pour figer aussi les transitives (lock-file).
 # ===========================================================================
 
-# Core ML
+# --- Core ML ---------------------------------------------------------------
 tensorflow-cpu==2.21.0
 keras==3.14.0
 
-# Numérique & scientifique
+# --- Numerique & scientifique ---------------------------------------------
 numpy==2.4.4
 scikit-learn==1.8.0
 
-# Imagerie
+# --- Imagerie -------------------------------------------------------------
 Pillow==12.2.0
 
-# UI démonstration
+# --- UI demonstration -----------------------------------------------------
 streamlit==1.57.0
 
-# Diagnostic local
+# --- CLI & configuration --------------------------------------------------
+typer==0.21.0
+pydantic-settings==2.13.1
+
+# --- Diagnostic local -----------------------------------------------------
 psutil==7.2.2

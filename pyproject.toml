@@ -1,17 +1,21 @@
 # ===========================================================================
 # pyproject.toml - deepvision-cifar10-classifier
-# PEP 621 — Configuration unifiée du projet Python
+# PEP 621 - Configuration unifiee du projet Python
 # ---------------------------------------------------------------------------
-# État Phase 0 : squelette minimal (sera enrichi en Phase 1).
+# Phase 1 : packaging actif (src/deepvision/), tooling de qualite cable
+# (ruff, mypy, pytest, coverage), CLI Typer disponible.
 # ===========================================================================
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
+# ---------------------------------------------------------------------------
+# Project metadata
+# ---------------------------------------------------------------------------
 [project]
 name = "deepvision-cifar10-classifier"
-version = "0.0.1"
+version = "0.2.0"
 description = "Industrial Computer Vision pipeline on CIFAR-10 with EfficientNetB0 transfer learning, MLflow, FastAPI, Docker, and CI/CD."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -31,10 +35,10 @@ keywords = [
     "fastapi",
     "streamlit",
     "onnx",
-    "tflite"
+    "tflite",
 ]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
@@ -46,9 +50,24 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Image Recognition",
 ]
 
-# Les dépendances pinnées sont dans requirements.txt pour la Phase 0.
-# La migration vers [project.dependencies] + pip-tools sera faite en Phase 1.
+# Runtime dependencies are pinned in requirements.txt to keep CI reproducible.
 dynamic = ["dependencies"]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.18",
+    "pytest>=8.5",
+    "pytest-cov>=7",
+    "pytest-xdist>=3.8",
+    "hypothesis>=6.0",
+    "pre-commit>=4.4",
+    "bandit>=1.8",
+    "pip-audit>=2.9",
+]
+
+[project.scripts]
+deepvision = "deepvision.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/Momo3972/deepvision-cifar10-classifier"
@@ -56,16 +75,26 @@ Repository = "https://github.com/Momo3972/deepvision-cifar10-classifier"
 Issues = "https://github.com/Momo3972/deepvision-cifar10-classifier/issues"
 Portfolio = "https://github.com/Momo3972/Portfolio-Data-IA"
 
+# ---------------------------------------------------------------------------
+# Setuptools — declarative configuration
+# ---------------------------------------------------------------------------
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
 
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["deepvision*"]
+
+[tool.setuptools.package-data]
+deepvision = ["py.typed"]
+
 # ---------------------------------------------------------------------------
-# Configuration des outils de qualité (à activer en Phase 1)
+# Ruff — lint + format
 # ---------------------------------------------------------------------------
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = [".venv", "build", "dist", "notebooks"]
+extend-exclude = [".venv", "build", "dist", "notebooks", "Notebooks", "models"]
 
 [tool.ruff.lint]
 select = [
@@ -78,16 +107,48 @@ select = [
     "N",    # pep8-naming
     "C4",   # flake8-comprehensions
     "SIM",  # flake8-simplify
+    "ARG",  # flake8-unused-arguments
+    "PT",   # flake8-pytest-style
+    "RET",  # flake8-return
+    "RUF",  # ruff-specific rules
 ]
 ignore = [
-    "E501",   # line too long (géré par formatter)
-    "B008",   # mutable default args (FastAPI Depends)
+    "E501",   # line too long (handled by formatter)
+    "B008",   # mutable default args (FastAPI Depends + Typer pattern)
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # imports inutilisés OK dans __init__
-"tests/*" = ["B011"]       # asserts OK dans les tests
+"__init__.py" = ["F401"]  # unused imports allowed in __init__
+"tests/*" = ["B011", "ARG001", "S101"]
+"scripts/*" = ["T201"]    # print() allowed in scripts
 
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+# ---------------------------------------------------------------------------
+# Mypy — static type checking
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+explicit_package_bases = true
+mypy_path = "src"
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
@@ -100,10 +161,13 @@ addopts = [
 ]
 markers = [
     "slow: tests longs (>5s)",
-    "integration: tests d'intégration",
+    "integration: tests d'integration",
     "benchmark: tests de performance",
 ]
 
+# ---------------------------------------------------------------------------
+# Coverage
+# ---------------------------------------------------------------------------
 [tool.coverage.run]
 branch = true
 source = ["src/deepvision"]
@@ -111,6 +175,7 @@ omit = [
     "*/tests/*",
     "*/__init__.py",
     "*/conftest.py",
+    "*/__main__.py",
 ]
 
 [tool.coverage.report]
@@ -122,3 +187,11 @@ exclude_lines = [
 ]
 show_missing = true
 precision = 2
+fail_under = 60   # progressive target — will be raised in subsequent phases.
+
+# ---------------------------------------------------------------------------
+# Bandit
+# ---------------------------------------------------------------------------
+[tool.bandit]
+exclude_dirs = ["tests", "scripts", ".venv", "build", "dist"]
+skips = ["B101"]   # assert_used: tolere dans le code applicatif
