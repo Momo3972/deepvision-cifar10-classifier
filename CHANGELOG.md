@@ -19,6 +19,45 @@ The roadmap is detailed in `Audit_DeepVision_CIFAR10.docx` (13 phases).
 
 ---
 
+## [0.2.0] — Phase 1 — Packaging Python (2026-05-01)
+
+The project is now a proper Python package, with quality tooling wired in.
+
+### Added
+- **`src/deepvision/` package** with declared subpackages:
+  - `data/`, `models/`, `training/`, `evaluation/`, `serving/`, `monitoring/`,
+    `utils/` (each with a docstring announcing the phase that fills it).
+  - `__init__.py` exposing `__version__`, `__author__`, `__license__`.
+  - `__main__.py` with a Typer CLI (`python -m deepvision version|info`).
+  - `config.py` with a `pydantic-settings` `Settings` class (env-driven).
+  - `constants.py` with `CLASS_NAMES_FR`, `CLASS_NAMES_EN`, `IMG_SIZE_*`,
+    `NUM_CLASSES`, `DEFAULT_SEED`, etc.
+  - `utils/logging.py` with idempotent `setup_logging` and `get_logger`.
+  - `utils/seed.py` with `set_seed` covering Python random, NumPy, and TF.
+  - `py.typed` marker (PEP 561) for downstream type checkers.
+- **`tests/` directory** with `conftest.py` and unit tests covering the package's
+  smoke imports, constants, seeding, and logging.
+- **`requirements-dev.txt`** with ruff, mypy, pytest, pytest-cov, pytest-xdist,
+  Hypothesis, pre-commit, bandit, pip-audit.
+- **`.pre-commit-config.yaml`** with ruff (lint + format), gitleaks (secret
+  detection), and standard hygiene hooks (large files, merge conflicts,
+  YAML/JSON/TOML validation, EOL fix, trailing whitespace).
+- **`Makefile`** with targets: `install`, `install-dev`, `lint`, `format`,
+  `typecheck`, `security`, `test`, `test-fast`, `check`, `diagnose`, `clean`.
+- **`tasks.ps1`** PowerShell equivalent for Windows-native users.
+- **Console script** `deepvision = deepvision.__main__:main`
+  (so `deepvision --help` works once the package is installed in editable mode).
+
+### Changed
+- **`pyproject.toml`** now declares the package layout (`src/`),
+  `[project.scripts]`, the dev-deps optional group, and full configurations
+  for ruff, mypy, pytest, coverage, and bandit.
+- **`requirements.txt`** ships two new runtime deps:
+  `typer==0.21.0` and `pydantic-settings==2.13.1`, both required by the package.
+- **Version bumped** from `0.1.0` to `0.2.0`.
+
+---
+
 ## [0.1.0] — Phase 0 — Baseline (2026-04-26)
 
 First commit of the industrial refactor.
