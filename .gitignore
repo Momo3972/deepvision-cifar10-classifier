@@ -53,12 +53,13 @@ ipython_config.py
 # ---------------------------------------------------------------------------
 # ML / Data — JAMAIS dans Git
 # ---------------------------------------------------------------------------
-# Datasets bruts ou volumineux
-data/
-data/raw/
-data/processed/
-data/external/
-data/interim/
+# Datasets bruts ou volumineux — UNIQUEMENT a la racine du repo,
+# pas src/deepvision/data/ qui contient le code source.
+/data/
+/data/raw/
+/data/processed/
+/data/external/
+/data/interim/
 *.csv
 *.tsv
 *.parquet
