@@ -19,6 +19,74 @@ The roadmap is detailed in `Audit_DeepVision_CIFAR10.docx` (13 phases).
 
 ---
 
+## [0.3.0] — Phase 2 — Data & Models (2026-05-01)
+
+The core ML logic of the original notebook has been ported into a modular,
+tested and documented Python package. Critical bugs from the audit are fixed.
+
+### Added — `src/deepvision/data/`
+- **`loader.py`**: canonical `load_cifar10()` returning a frozen
+  `CifarSplit` dataclass. Performs a stratified 80/20 split on the merged
+  train+test arrays so every model sees the **same** partition. Includes
+  `compute_dataset_hash()` (SHA-256) for MLflow traceability.
+- **`preprocessing.py`**: `normalize_to_unit`, `denormalize_to_uint8`,
+  `one_hot_encode`, `validate_image_array`. Strict input validation.
+- **`augmentation.py`**: `AugmentationConfig` dataclass and
+  `build_augmentation_pipeline()` returning a Keras `Sequential`
+  (RandomFlip + RandomRotation + RandomZoom + RandomContrast).
+
+### Added — `src/deepvision/models/`
+- **`mlp.py`**: `build_mlp()` — Flatten + 2x(Dense + BN + Dropout) + Output.
+- **`cnn.py`**: `build_cnn()` — three VGG-style convolutional blocks with
+  BatchNorm and progressive Dropout (0.2 → 0.3 → 0.4 → 0.5).
+- **`efficientnet.py`**: `build_efficientnet()` and `unfreeze_top_layers()`.
+  Two-stage transfer learning (feature extraction → fine-tuning), with
+  `weights=None` mode for fast unit tests.
+- **`registry.py`**: `MODEL_REGISTRY`, `get_model()`, `available_models()` —
+  factory used by the upcoming training CLI.
+
+### Added — Tests (4 new test modules, 28 new tests)
+- **`tests/unit/test_loader.py`**: dataset hash determinism, stratified split
+  reproducibility, balance assertion, summary contract. Real CIFAR-10
+  download wrapped in `@pytest.mark.integration` (skipped by default).
+- **`tests/unit/test_preprocessing.py`**: 9 tests covering normalization,
+  one-hot encoding, validation, parameterized failure cases.
+- **`tests/unit/test_augmentation.py`**: pipeline shape preservation, custom
+  configurations, disabled mode.
+- **`tests/unit/test_models.py`**: registry contracts, MLP/CNN I/O shapes,
+  EfficientNet structural checks (resize layer, layer counts), unfreeze
+  helper invariants.
+
+### Fixed
+- **Data leakage between models** (audit Bug B6): the original notebook
+  trained MLP / CNN on a stratified 80/20 split (48k/12k) but EfficientNet
+  on the native Keras 50k/10k split, and then evaluated all three on the
+  12k subset — which contained images EfficientNet had seen during training.
+  Phase 2 enforces a single `load_cifar10()` entry-point used by every
+  model. The 93 % test accuracy will be re-measured on a clean test set in
+  Phase 3 (the score may drop by 1–3 percentage points; this will be
+  documented as a deliberate methodological correction).
+- **Ambiguous Colab-only model save path** (audit Bug B7): no hardcoded
+  paths anymore — all I/O goes through `Settings.models_dir`.
+- **`get_callbacks` and `plot_history` duplication** in the notebook is
+  superseded by the new module structure (training pipeline arrives in
+  Phase 3).
+
+### Changed
+- **`pytest`** now skips `@pytest.mark.integration` by default
+  (`addopts: -m "not integration"`). Run them explicitly with
+  `pytest -m integration`.
+- **Version bumped** from `0.2.0` to `0.3.0`.
+
+### Tech debt acknowledged (deferred)
+- The legacy `app.py` Streamlit demo at the root still uses local
+  preprocessing logic. It will be rewritten on top of the new `data/` and
+  `models/` modules in Phase 6.
+- The original `Notebooks/Projet_Vision_CIFAR10.ipynb` is unchanged; it
+  will be split into 5 thinner notebooks importing the package in Phase 4.
+
+---
+
 ## [0.2.0] — Phase 1 — Packaging Python (2026-05-01)
 
 The project is now a proper Python package, with quality tooling wired in.
