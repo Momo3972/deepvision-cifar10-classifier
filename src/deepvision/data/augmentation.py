@@ -47,8 +47,8 @@ def build_augmentation_pipeline(config: AugmentationConfig | None = None):
     augmentation is then re-randomized at every epoch and runs on the GPU when
     one is available.
     """
-    from tensorflow.keras import Sequential  # noqa: PLC0415 — lazy
-    from tensorflow.keras.layers import (  # noqa: PLC0415
+    from tensorflow.keras import Sequential
+    from tensorflow.keras.layers import (
         RandomContrast,
         RandomFlip,
         RandomRotation,

@@ -15,7 +15,7 @@ build-backend = "setuptools.build_meta"
 # ---------------------------------------------------------------------------
 [project]
 name = "deepvision-cifar10-classifier"
-version = "0.3.0"
+version = "0.4.0"
 description = "Industrial Computer Vision pipeline on CIFAR-10 with EfficientNetB0 transfer learning, MLflow, FastAPI, Docker, and CI/CD."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -195,4 +195,9 @@ fail_under = 60   # progressive target — will be raised in subsequent phases.
 # ---------------------------------------------------------------------------
 [tool.bandit]
 exclude_dirs = ["tests", "scripts", ".venv", "build", "dist"]
-skips = ["B101"]   # assert_used: tolere dans le code applicatif
+skips = [
+    "B101",  # assert_used — tolere dans le code applicatif
+    "B404",  # subprocess import — utilise dans mlflow_utils pour git rev-parse
+    "B603",  # subprocess without shell=True — argv liste statique [git, ...]
+    "B607",  # start_process_with_partial_path — git est dans le PATH
+]

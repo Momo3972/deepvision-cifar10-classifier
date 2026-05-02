@@ -19,6 +19,52 @@ The roadmap is detailed in `Audit_DeepVision_CIFAR10.docx` (13 phases).
 
 ---
 
+## [0.4.0] — Phase 3 — Training pipeline & MLflow (2026-05-01)
+
+The project now has a reproducible, fully tracked training pipeline. Running
+`python -m deepvision train --model efficientnet` produces an MLflow run with
+params, per-epoch metrics, dataset hash, environment provenance,
+classification report, confusion matrix and the serialized model.
+
+### Added — `src/deepvision/training/`
+- **`train.py`**: `TrainConfig` + `TrainResult` dataclasses,
+  `run_training()` end-to-end pipeline. Two-stage strategy for EfficientNet
+  (feature extraction + optional fine-tuning) wired in. `--quick` mode for
+  weak hardware (1 000 images, 1 epoch, no ImageNet weights).
+- **`callbacks.py`**: `build_default_callbacks()` factory exposing
+  EarlyStopping + ReduceLROnPlateau with overridable hyperparameters.
+- **`mlflow_utils.py`**: `setup_mlflow`, `start_run` (context manager),
+  `log_dataset_metadata`, `log_environment_metadata`,
+  `log_classification_artifacts`. Captures git SHA, Python and TF versions.
+
+### Added — `src/deepvision/evaluation/`
+- **`metrics.py`**: `evaluate_model()` returns a JSON-friendly dict
+  (`accuracy`, `loss`, `per_class_f1`, `classification_report`,
+  `confusion_matrix`, `macro_f1`, `weighted_f1`).
+
+### Added — CLI
+- `python -m deepvision train --model {mlp,cnn,efficientnet} [--quick]`
+  with options for epochs, batch size, learning rate, fine-tune-epochs,
+  fine-tune-lr, seed and experiment name.
+
+### Added — Tests (4 modules, 14 new tests)
+- `test_callbacks.py`: callback factory contract.
+- `test_metrics.py`: cross-entropy edge cases and `evaluate_model` smoke.
+- `test_mlflow_utils.py`: tracking URI handling, environment helpers.
+- `test_train.py`: config and result dataclass invariants.
+
+### Changed
+- Runtime dependency: `mlflow>=2.16,<3.0` (range pin — locked in Phase 5).
+- Version bumped: `0.3.0` -> `0.4.0`.
+
+### Methodological note
+The corrected EfficientNet accuracy will be re-measured on the clean,
+leakage-free 12 000-image test set during the first full training run on
+Colab. Results will be logged in MLflow and added to this changelog
+when measured.
+
+---
+
 ## [0.3.0] — Phase 2 — Data & Models (2026-05-01)
 
 The core ML logic of the original notebook has been ported into a modular,

@@ -96,7 +96,7 @@ function Invoke-TypeCheck {
 
 function Invoke-Security {
     Write-Section "Scan de securite avec bandit"
-    python -m bandit -r src -q
+    python -m bandit -c pyproject.toml -r src -q
     Write-Section "Audit des dependencies avec pip-audit"
     python -m pip_audit --strict --requirement requirements.txt
 }
