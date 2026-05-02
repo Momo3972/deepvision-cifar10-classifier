@@ -1,11 +1,19 @@
 """
 Model evaluation, interpretability and benchmarking.
 
-Will be populated in Phase 4 with:
+Public API
+----------
+- :func:`deepvision.evaluation.metrics.evaluate_model`: full classification metrics.
 
-- :mod:`deepvision.evaluation.metrics`:           per-class precision/recall/F1, top-k accuracy.
-- :mod:`deepvision.evaluation.calibration`:       Expected Calibration Error, temperature scaling.
-- :mod:`deepvision.evaluation.robustness`:        CIFAR-10-C corruption benchmarks.
-- :mod:`deepvision.evaluation.interpretability`:  Grad-CAM and Integrated Gradients.
-- :mod:`deepvision.evaluation.benchmark`:         inference-latency benchmarks (p50/p90/p95/p99).
+Phase 4 will add:
+- :mod:`deepvision.evaluation.calibration`: temperature scaling + ECE.
+- :mod:`deepvision.evaluation.robustness`: CIFAR-10-C corruptions.
+- :mod:`deepvision.evaluation.interpretability`: Grad-CAM and Integrated Gradients.
+- :mod:`deepvision.evaluation.benchmark`: latency p50 / p90 / p95 / p99.
 """
+
+from __future__ import annotations
+
+from deepvision.evaluation.metrics import evaluate_model
+
+__all__ = ["evaluate_model"]

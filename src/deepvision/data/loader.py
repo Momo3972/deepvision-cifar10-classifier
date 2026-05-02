@@ -93,7 +93,7 @@ def _load_cifar10_raw() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
     Importing Keras is deferred to keep this module importable in environments
     without TensorFlow (e.g. lint-only CI jobs).
     """
-    from tensorflow.keras.datasets import cifar10  # noqa: PLC0415 — lazy
+    from tensorflow.keras.datasets import cifar10
 
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     return x_train, y_train, x_test, y_test
@@ -185,9 +185,7 @@ def _assert_balanced(labels: np.ndarray, name: str, *, tolerance: float = 0.02) 
     """
     unique, counts = np.unique(labels, return_counts=True)
     if len(unique) != NUM_CLASSES:
-        raise ValueError(
-            f"{name} split contains {len(unique)} classes, expected {NUM_CLASSES}"
-        )
+        raise ValueError(f"{name} split contains {len(unique)} classes, expected {NUM_CLASSES}")
 
     fractions = counts / counts.sum()
     expected = 1.0 / NUM_CLASSES

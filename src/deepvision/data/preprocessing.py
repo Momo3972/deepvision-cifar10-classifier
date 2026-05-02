@@ -90,6 +90,4 @@ def validate_image_array(
             f"Expected image size {expected_height}x{expected_width}, got {height}x{width}"
         )
     if channels != expected_channels:
-        raise ValueError(
-            f"Expected {expected_channels} channels, got {channels}"
-        )
+        raise ValueError(f"Expected {expected_channels} channels, got {channels}")

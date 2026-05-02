@@ -60,7 +60,7 @@ typecheck: ## Static type-check the package with mypy.
 
 .PHONY: security
 security: ## Static security scan with bandit + dependency CVEs with pip-audit.
-	$(PY) -m bandit -r src -q
+	$(PY) -m bandit -c pyproject.toml -r src -q
 	$(PY) -m pip_audit --strict --requirement requirements.txt
 
 # ---------------------------------------------------------------------------
