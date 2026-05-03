@@ -19,6 +19,60 @@ The roadmap is detailed in `Audit_DeepVision_CIFAR10.docx` (13 phases).
 
 ---
 
+## [0.5.0] — Phase 4 — Evaluation enrichment (2026-05-02)
+
+The project now ships a full evaluation toolbox aligned with modern Computer
+Vision practice. **No fabricated metrics**: actual numbers will be measured on
+Colab once the upstream CIFAR-10 host (cs.toronto.edu) is reachable again
+(scheduled to resume on 2026-05-04).
+
+### Added — `src/deepvision/evaluation/`
+- **`calibration.py`** — Expected Calibration Error (ECE) over 15 confidence
+  bins (Guo et al., 2017), `reliability_diagram_data` helper for plotting,
+  `fit_temperature` (post-hoc temperature scaling via scipy `minimize_scalar`),
+  `apply_temperature`. Numerically stable log-softmax internally.
+- **`interpretability.py`** — Grad-CAM (`grad_cam`) implementation in pure
+  TensorFlow/Keras with recursive sub-model traversal (`find_last_conv_layer`,
+  `_find_layer`) so it works on the nested EfficientNetB0 backbone.
+  Heatmap normalization, bilinear upsampling, and an `inferno`-style
+  colormap (`overlay_heatmap_on_image`) without a matplotlib dependency.
+- **`benchmark.py`** — `LatencyResult` dataclass (mean / p50 / p90 / p95 /
+  p99 / min / max in milliseconds + throughput), `benchmark_callable`
+  (warmup + measured iterations), `benchmark_keras_model` convenience
+  wrapper using a deterministic synthetic input.
+- **`robustness.py`** — CIFAR-10-C harness: `STANDARD_CORRUPTIONS` (15
+  canonical names), `RobustnessReport` dataclass, `discover_corruptions`,
+  `evaluate_corruption` (per-severity accuracy), `evaluate_robustness`
+  (clean accuracy + per-corruption + mean Corruption Error). The download
+  helper raises `NotImplementedError` deliberately — users opt in by
+  fetching CIFAR-10-C manually from Zenodo.
+
+### Added — Tests (3 new modules, ~25 unit tests)
+- `test_calibration.py` — perfectly-calibrated synthetic dataset has ECE ≈ 0,
+  overconfident classifier has ECE ≈ 0.5, temperature scaling preserves
+  argmax but flattens the distribution, `fit_temperature` recovers T ≈ 1
+  on calibrated logits.
+- `test_interpretability.py` — Grad-CAM returns a heatmap of the correct
+  shape for an EfficientNet without ImageNet weights, normalized to [0, 1].
+- `test_benchmark.py` — `benchmark_callable` returns sane statistics on a
+  noop function (warmup honored, percentiles ordered, throughput positive).
+
+### Tech-debt acknowledged (deferred)
+- `evaluate_robustness` is **not unit-tested end-to-end** because CIFAR-10-C
+  is too large to bundle (12 GB) and downloading from Zenodo requires
+  cross-platform handling that belongs in a future Phase 10 enhancement.
+  The harness is documented and shape-checked.
+- All metrics will be re-measured on Colab once CIFAR-10 is back online
+  (cs.toronto.edu currently down for scheduled maintenance until 2026-05-04).
+
+### Changed
+- `requirements.txt` adds `scipy>=1.13,<2.0` (used by `fit_temperature`).
+  scipy was already a transitive dep of scikit-learn but is now declared
+  explicitly to avoid surprises.
+- Version bumped: `0.4.0` → `0.5.0`.
+
+---
+
 ## [0.4.0] — Phase 3 — Training pipeline & MLflow (2026-05-01)
 
 The project now has a reproducible, fully tracked training pipeline. Running
