@@ -3,10 +3,11 @@ Command-line interface for the deepvision package.
 
 Subcommands
 -----------
-- ``version``: print the package version and exit.
-- ``info``:    print package metadata and resolved configuration paths.
-- ``train``:   train one of the registered models with full MLflow tracking.
-- ``serve``:   launch the FastAPI inference service via uvicorn.
+- ``version``:   print the package version and exit.
+- ``info``:      print package metadata and resolved configuration paths.
+- ``train``:     train one of the registered models with full MLflow tracking.
+- ``serve``:     launch the FastAPI inference service via uvicorn.
+- ``streamlit``: launch the Streamlit demo UI (Phase 6 refonte).
 
 Usage
 -----
@@ -17,6 +18,7 @@ Usage
     python -m deepvision info
     python -m deepvision train --model efficientnet --epochs 1 --quick
     python -m deepvision serve --host 0.0.0.0 --port 8000
+    python -m deepvision streamlit --port 8501
 """
 
 from __future__ import annotations
@@ -204,6 +206,63 @@ def serve(
         workers=1 if reload else workers,
         log_level=log_level,
     )
+
+
+@app.command()
+def streamlit(
+    host: str = typer.Option(
+        "0.0.0.0",
+        "--host",
+        "--server-address",
+        help="Interface the Streamlit server binds to.",
+    ),
+    port: int = typer.Option(
+        8501,
+        "--port",
+        "-p",
+        min=1,
+        max=65535,
+        help="TCP port exposed by the Streamlit demo.",
+    ),
+    headless: bool = typer.Option(
+        True,
+        "--headless/--no-headless",
+        help="Run without auto-opening a browser tab (recommended in containers).",
+    ),
+) -> None:
+    """Launch the Streamlit demo UI.
+
+    Examples
+    --------
+    Local development::
+
+        python -m deepvision streamlit --no-headless
+
+    Production-style boot inside the future Streamlit container::
+
+        python -m deepvision streamlit --host 0.0.0.0 --port 8501
+    """
+    # Heavy imports deferred so ``--help`` stays cheap and the CLI remains
+    # importable without Streamlit installed.
+    import sys
+    from pathlib import Path
+
+    from streamlit.web import cli as stcli
+
+    target = Path(__file__).resolve().parent / "streamlit_app.py"
+    typer.echo(f"deepvision Streamlit v{__version__} -- http://{host}:{port}")
+    sys.argv = [
+        "streamlit",
+        "run",
+        str(target),
+        "--server.address",
+        host,
+        "--server.port",
+        str(port),
+        "--server.headless",
+        "true" if headless else "false",
+    ]
+    sys.exit(stcli.main())
 
 
 def main() -> None:  # pragma: no cover -- entrypoint

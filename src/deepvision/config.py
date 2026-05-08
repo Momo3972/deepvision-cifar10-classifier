@@ -131,6 +131,18 @@ class Settings(BaseSettings):
         description="Semantic version surfaced in API responses and Prometheus labels.",
     )
 
+    # ----------------- Streamlit (Phase 6) ------------
+    streamlit_host: str = Field(
+        default="0.0.0.0",
+        description="Host interface the Streamlit demo binds to.",
+    )
+    streamlit_port: int = Field(
+        default=8501,
+        ge=1,
+        le=65535,
+        description="TCP port exposed by the Streamlit demo.",
+    )
+
     # ----------------- Logging ------------------------
     log_level: str = Field(
         default="INFO",
