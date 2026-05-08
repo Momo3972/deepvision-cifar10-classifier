@@ -19,6 +19,94 @@ The roadmap is detailed in `Audit_DeepVision_CIFAR10.docx` (13 phases).
 
 ---
 
+## [0.7.0] — Phase 6 — Refonte Streamlit (2026-05-08)
+
+The Streamlit demo, previously a 68-line `app.py` at the repository root, has
+been replaced by a structured module that reuses the Phase 5 serving layer
+and the Phase 4 interpretability helpers. The four critical bugs flagged by
+the audit (sections 4.4 and 9) are corrected with dedicated regression tests:
+
+- **B1 — Double softmax** removed; probabilities come straight from
+  `InferenceEngine.predict`.
+- **B2 — Destructive 32×32 resize** replaced by `preprocess_for_efficientnet`
+  targeting the 160×160 native input.
+- **B3 — Missing RGB conversion** handled by the same shared preprocessor;
+  RGBA and grayscale uploads no longer crash.
+- **B4 — Deprecated `use_column_width`** replaced everywhere by
+  `use_container_width`.
+
+### Added — `src/deepvision/streamlit_app.py`
+- Full Streamlit module: page config, sidebar with model name/version (B12
+  fix — class names now imported from `deepvision.constants`), file uploader
+  with multi-image support, per-image prediction card with top-3 probabilities,
+  inference latency, Grad-CAM expander (lazy TensorFlow import).
+- `detect_mime` / `validate_mime` for header-based MIME validation on top of
+  the browser-reported extension.
+- `predict_one(engine, image)` is the testable core: it runs preprocess +
+  inference and returns the top-k items, the inference time, and the
+  pre-processed batch (used as input for Grad-CAM).
+- `render_gradcam_overlay` delegates to
+  `deepvision.evaluation.interpretability.grad_cam` and
+  `overlay_heatmap_on_image` so there is one canonical Grad-CAM
+  implementation across serving and demo.
+- Optional clickable example gallery sourced from
+  `assets/streamlit/examples/` (silently skipped when the folder is absent).
+
+### Added — `src/deepvision/serving/inference.py`
+- New public `InferenceEngine.model` property returning the underlying Keras
+  model (auto-loads on first access). Used by the Streamlit demo to feed
+  Grad-CAM without touching the private `_model` attribute.
+
+### Added — CLI
+- `python -m deepvision streamlit [--host 0.0.0.0] [--port 8501]
+  [--headless/--no-headless]` shells out to `streamlit.web.cli` to launch
+  `streamlit_app.py`. Streamlit is lazy-imported so `--help` stays instant.
+
+### Added — Configuration (`Settings`, prefix `DEEPVISION_`)
+- `streamlit_host` (default `0.0.0.0`) and `streamlit_port` (default `8501`).
+
+### Added — Tests (`tests/unit/test_streamlit_app.py`, ~17 tests)
+- Magic-byte detection: PNG / JPEG / WebP recognised, unknown / too-short
+  payloads return `None`.
+- `validate_mime` rejects a text payload renamed `image.png` (defence in
+  depth).
+- `predict_one` regression tests:
+  - target size is 160×160, **not** 32×32 (B2);
+  - RGBA and grayscale inputs do not crash (B3);
+  - the engine's probabilities pass through unchanged — no second softmax
+    (B1);
+  - top-3 length and `inference_time_ms` shape contract.
+- `render_gradcam_overlay` calls
+  `deepvision.evaluation.interpretability.grad_cam` with the engine's model,
+  the (H, W, C) image slice, and the requested target class
+  (TensorFlow-free, monkeypatched).
+- Static guards on the module source: no `use_column_width`, no
+  `tf.nn.softmax`, no `(32, 32)` literal, no hard-coded class names —
+  catches regressions before they ship.
+
+### Removed
+- Legacy `app.py` at the repository root deleted (`git rm app.py`). The
+  refonte lives in `src/deepvision/streamlit_app.py` and is launched via the
+  CLI.
+
+### Changed
+- Version bumped: `0.6.0` → `0.7.0`.
+
+### Audit bugs addressed
+- **B1**, **B2**, **B3**, **B4** (table of bugs, section 5).
+- **B12** — duplicated `CLASS_NAMES` between `app.py` and the notebook —
+  fixed: the demo imports `CLASS_NAMES_FR` from `deepvision.constants`.
+
+### Tech-debt acknowledged (deferred)
+- Sample images for the clickable gallery are **not** bundled in the repo
+  yet (`assets/streamlit/examples/` is optional). They will land alongside
+  the documentation polish in Phase 11.
+- The MLflow Registry round-trip for the served model version is still
+  driven by `Settings.serving_model_version`; auto-discovery via
+  `MlflowClient.get_latest_versions` is a Phase 9/11 candidate.
+
+---
+
 ## [0.6.0] — Phase 5 — Serving FastAPI (2026-05-08)
 
 The project now ships a production-shaped REST API. The serving layer

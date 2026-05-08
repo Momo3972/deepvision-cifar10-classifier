@@ -64,6 +64,18 @@ class InferenceEngine:
         """``True`` once the underlying model is in memory."""
         return self._model is not None
 
+    @property
+    def model(self) -> Model:
+        """Return the underlying Keras model, loading it on first access.
+
+        Exposed publicly so callers like the Streamlit demo can pass the model
+        to interpretability helpers (e.g. ``deepvision.evaluation.interpretability.grad_cam``).
+        """
+        if self._model is None:
+            self.load()
+        assert self._model is not None  # mypy: load() guarantees this
+        return self._model
+
     def load(self) -> None:
         """Force-load the model (idempotent)."""
         if self._model is not None:
