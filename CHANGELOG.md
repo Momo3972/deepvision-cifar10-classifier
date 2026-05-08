@@ -19,6 +19,83 @@ The roadmap is detailed in `Audit_DeepVision_CIFAR10.docx` (13 phases).
 
 ---
 
+## [0.6.0] — Phase 5 — Serving FastAPI (2026-05-08)
+
+The project now ships a production-shaped REST API. The serving layer
+follows the audit prescriptions (sections 4.4, 7.4 and table 25): strict
+input validation, Pydantic v2 schemas, Prometheus instrumentation, optional
+API-key auth, and a CLI entrypoint that boots uvicorn.
+
+### Added — `src/deepvision/serving/`
+- **`api.py`** — FastAPI app with `/`, `/health`, `/ready`, `/meta`,
+  `/predict`, `/predict_batch`, `/metrics` and `/openapi.json`. The
+  `create_app(*, settings, engine)` factory builds an isolated app for tests
+  and lets us inject a stub engine without touching TensorFlow. CORS is
+  configurable via `Settings.cors_allow_origins`. Optional `X-API-Key`
+  header enforcement when `DEEPVISION_API_KEY` is set. Each request goes
+  through a Prometheus + structured-log middleware that records latency,
+  status class, and per-endpoint counters.
+- **`prometheus.py`** — dedicated `CollectorRegistry`, latency histogram
+  (`deepvision_inference_latency_seconds`, 10 buckets from 5 ms to 5 s),
+  request and error counters (`deepvision_http_requests_total`,
+  `deepvision_http_errors_total`), `model_loaded` gauge, and a label-only
+  `model_info` gauge for Grafana.
+- **`schemas.py`** — added `BatchPredictionItem` and `BatchPredictResponse`,
+  whitelisted Pydantic v2 protected namespaces so `model_name` /
+  `model_version` keep their canonical names in the OpenAPI document.
+- **`__init__.py`** — re-exports the public surface and lazy-loads the
+  FastAPI symbols via PEP 562 (importing `deepvision.serving` no longer
+  pulls FastAPI into memory).
+
+### Added — CLI
+- `python -m deepvision serve [--host 0.0.0.0] [--port 8000] [--reload]
+  [--workers N] [--log-level info]` boots uvicorn against
+  `deepvision.serving.api:app`.
+
+### Added — Configuration (`Settings`, prefix `DEEPVISION_`)
+- `api_host`, `api_port`, `api_reload`, `api_key`, `cors_allow_origins`,
+  `max_image_bytes`, `max_batch_size`, `model_path`, `serving_model_name`,
+  `serving_model_version`. All overridable via env or `.env`.
+
+### Added — Tests (5 modules, ~50 unit tests)
+- `test_serving_preprocess.py` — RGB/RGBA/grayscale → uint8(1,160,160,3),
+  payload-size and decompression-bomb guards, end-to-end happy path.
+- `test_serving_inference.py` — lazy load, idempotency, top-k contract,
+  random-weights softmax sanity. Uses `weights=None` so it runs on a CPU.
+- `test_serving_schemas.py` — round-trips, Pydantic validation errors,
+  default values match the package version and class catalogue.
+- `test_serving_prometheus.py` — metric types, bucket monotonicity,
+  `status_class` mapping, exposition output sanity.
+- `test_serving_api.py` — `TestClient` end-to-end coverage of every
+  endpoint (happy path + 400/401/413/415/422 branches), CORS preflight,
+  X-API-Key enforcement, OpenAPI schema sanity.
+
+### Changed
+- `requirements.txt` adds `fastapi>=0.115,<1.0`, `uvicorn[standard]>=0.32`,
+  `python-multipart>=0.0.12`, `prometheus-client>=0.21`. `requirements-dev.txt`
+  adds `httpx>=0.27` (FastAPI TestClient backend).
+- Version bumped: `0.5.0` → `0.6.0`.
+
+### Audit bugs addressed (originally flagged in `Audit_DeepVision_CIFAR10.docx`)
+- B3 — *No RGB conversion* — `preprocess_for_efficientnet` always coerces to
+  RGB, covered by dedicated unit tests for both RGBA-PNG and grayscale-PNG
+  uploads.
+- B14 — *No input validation* — payload size cap, decompression-bomb guard
+  on dimensions, MIME-type allowlist, hard 401 path on missing/invalid key.
+- B13 — *No structured logging* — every request emits a `method=… path=…
+  status=… duration_ms=…` line through `deepvision.utils.logging.get_logger`.
+
+### Tech-debt acknowledged (deferred)
+- The `/explain` Grad-CAM endpoint is **not** part of Phase 5 — it lands in
+  Phase 6 alongside the Streamlit refresh, so the same preprocessing path is
+  reused in both UIs.
+- Rate limiting (slowapi) is deferred to Phase 7 (containerisation), where
+  it will be paired with an Nginx reverse-proxy in the Docker Compose stack.
+- pip-tools lock-files are still pending; Phase 5 only adds upper-bounded
+  ranges to keep the runtime footprint stable until then.
+
+---
+
 ## [0.5.0] — Phase 4 — Evaluation enrichment (2026-05-02)
 
 The project now ships a full evaluation toolbox aligned with modern Computer

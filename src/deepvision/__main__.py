@@ -6,6 +6,7 @@ Subcommands
 - ``version``: print the package version and exit.
 - ``info``:    print package metadata and resolved configuration paths.
 - ``train``:   train one of the registered models with full MLflow tracking.
+- ``serve``:   launch the FastAPI inference service via uvicorn.
 
 Usage
 -----
@@ -15,7 +16,7 @@ Usage
     python -m deepvision version
     python -m deepvision info
     python -m deepvision train --model efficientnet --epochs 1 --quick
-    python -m deepvision train --model efficientnet --epochs 10 --fine-tune-epochs 5
+    python -m deepvision serve --host 0.0.0.0 --port 8000
 """
 
 from __future__ import annotations
@@ -114,7 +115,7 @@ def train(
     quick: bool = typer.Option(
         False,
         "--quick",
-        help="Tiny smoke run on 1 000 images and 1 epoch — useful on weak CPUs.",
+        help="Tiny smoke run on 1 000 images and 1 epoch (useful on weak CPUs).",
     ),
     experiment_name: str = typer.Option(
         "deepvision-cifar10",
@@ -152,16 +153,60 @@ def train(
 
     typer.echo("")
     typer.echo("=" * 60)
-    typer.echo(f"Run finished — model={result.model_name}, run_id={result.run_id}")
+    typer.echo(f"Run finished -- model={result.model_name}, run_id={result.run_id}")
     typer.echo(f"Test accuracy : {result.metrics['accuracy']:.4f}")
     typer.echo(f"Test loss     : {result.metrics['loss']:.4f}")
     typer.echo(f"Macro F1      : {result.metrics['macro_f1']:.4f}")
     typer.echo(f"Weighted F1   : {result.metrics['weighted_f1']:.4f}")
     typer.echo("=" * 60)
-    typer.echo("Open the MLflow UI:  mlflow ui  → http://localhost:5000")
+    typer.echo("Open the MLflow UI:  mlflow ui  -> http://localhost:5000")
 
 
-def main() -> None:  # pragma: no cover — entrypoint
+@app.command()
+def serve(
+    host: str = typer.Option(
+        "0.0.0.0",
+        "--host",
+        help="Interface uvicorn binds to.",
+    ),
+    port: int = typer.Option(8000, "--port", "-p", min=1, max=65535, help="TCP port."),
+    reload: bool = typer.Option(False, "--reload", help="Auto-reload on code change (dev only)."),
+    workers: int = typer.Option(
+        1, "--workers", "-w", min=1, max=16, help="Number of uvicorn worker processes."
+    ),
+    log_level: str = typer.Option(
+        "info",
+        "--log-level",
+        help="Uvicorn log level: critical / error / warning / info / debug / trace.",
+    ),
+) -> None:
+    """Launch the FastAPI inference server.
+
+    Examples
+    --------
+    Local development with hot reload::
+
+        python -m deepvision serve --reload
+
+    Production-style boot (matches the Docker image entrypoint)::
+
+        python -m deepvision serve --host 0.0.0.0 --port 8000 --workers 2
+    """
+    # Heavy import deferred so `--help` stays cheap.
+    import uvicorn
+
+    typer.echo(f"deepvision API v{__version__} -- http://{host}:{port}/docs")
+    uvicorn.run(
+        "deepvision.serving.api:app",
+        host=host,
+        port=port,
+        reload=reload,
+        workers=1 if reload else workers,
+        log_level=log_level,
+    )
+
+
+def main() -> None:  # pragma: no cover -- entrypoint
     """Entrypoint used by ``python -m deepvision`` and console scripts."""
     app()
 
