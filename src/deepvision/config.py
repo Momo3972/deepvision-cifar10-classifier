@@ -2,8 +2,8 @@
 Centralized application configuration.
 
 Uses ``pydantic-settings`` so values can be overridden by environment variables
-or a local ``.env`` file. The skeleton stays minimal in Phase 1 — actual fields
-will grow during Phases 3 (training), 5 (serving) and 8 (monitoring).
+or a local ``.env`` file. The skeleton stays minimal in Phase 1; actual fields
+grow during Phases 3 (training), 5 (serving) and 8 (monitoring).
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from deepvision.constants import (
 )
 
 #: Repository root, derived from the location of this file
-#: (``src/deepvision/config.py`` → repo root is two parents up from ``src``).
+#: (``src/deepvision/config.py`` -> repo root is two parents up from ``src``).
 REPO_ROOT: Path = Path(__file__).resolve().parents[2]
 
 
@@ -75,6 +75,61 @@ class Settings(BaseSettings):
     batch_size: int = Field(default=DEFAULT_BATCH_SIZE, ge=1, le=1024)
     epochs: int = Field(default=DEFAULT_EPOCHS, ge=1, le=500)
     image_size: int = Field(default=IMG_SIZE_EFFICIENTNET, ge=32, le=512)
+
+    # ----------------- Serving (Phase 5) --------------
+    api_host: str = Field(
+        default="0.0.0.0",
+        description="Host interface the FastAPI server binds to.",
+    )
+    api_port: int = Field(
+        default=8000,
+        ge=1,
+        le=65535,
+        description="TCP port exposed by the FastAPI server.",
+    )
+    api_reload: bool = Field(
+        default=False,
+        description="Enable uvicorn's auto-reload (development only).",
+    )
+    api_key: str | None = Field(
+        default=None,
+        description=(
+            "Optional API key. When set, every /predict* request must carry "
+            "the matching value in the 'X-API-Key' header. "
+            "Leave unset to disable authentication."
+        ),
+    )
+    cors_allow_origins: list[str] = Field(
+        default_factory=lambda: ["*"],
+        description="CORS allow-origin list. Use ['*'] for an open demo, restrict for prod.",
+    )
+    max_image_bytes: int = Field(
+        default=10 * 1024 * 1024,
+        ge=1024,
+        description="Hard cap on the size of an uploaded image, in bytes.",
+    )
+    max_batch_size: int = Field(
+        default=16,
+        ge=1,
+        le=128,
+        description="Maximum number of images accepted by /predict_batch in one call.",
+    )
+    model_path: Path | None = Field(
+        default=None,
+        description=(
+            "Optional path to a trained .keras / SavedModel artefact. "
+            "When unset, the API serves an EfficientNetB0 with random weights "
+            "(useful for CI smoke tests and image build verification)."
+        ),
+    )
+    serving_model_name: str = Field(
+        default="efficientnet_b0_transfer",
+        description="Identifier surfaced in API responses and Prometheus labels.",
+    )
+    serving_model_version: str = Field(
+        default="0.0.0-untrained",
+        description="Semantic version surfaced in API responses and Prometheus labels.",
+    )
 
     # ----------------- Logging ------------------------
     log_level: str = Field(

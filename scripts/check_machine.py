@@ -3,7 +3,7 @@ Diagnostic des capacités de la machine pour la refonte deepvision-cifar10-class
 
 Usage :
     # Active d'abord ton environnement virtuel :
-    .venv\Scripts\activate          (Windows PowerShell)
+    .venv\\Scripts\activate          (Windows PowerShell)
 
     # Puis lance :
     python scripts/check_machine.py
@@ -23,7 +23,6 @@ import sys
 import time
 from pathlib import Path
 
-
 # ----------- helpers ---------------------------------------------------------
 
 C = {
@@ -36,7 +35,7 @@ C = {
     "reset": "\033[0m",
 }
 # Désactive les couleurs si la sortie n'est pas un terminal
-if not sys.stdout.isatty() or os.name == "nt" and not os.environ.get("TERM"):
+if not sys.stdout.isatty() or (os.name == "nt" and not os.environ.get("TERM")):
     for k in C:
         C[k] = ""
 
@@ -81,6 +80,7 @@ def run_cmd(cmd: list[str], timeout: int = 5) -> str | None:
 
 # ----------- checks ----------------------------------------------------------
 
+
 def check_os() -> dict:
     section("1. Système d'exploitation")
     info(f"OS         : {platform.system()} {platform.release()} ({platform.version()})")
@@ -102,7 +102,9 @@ def check_cpu() -> dict:
         if freq:
             info(f"Fréquence : {freq.current:.0f} MHz (max {freq.max:.0f})")
     else:
-        warn("psutil non installé — détails fréquence indisponibles. Installe avec: pip install psutil")
+        warn(
+            "psutil non installé — détails fréquence indisponibles. Installe avec: pip install psutil"
+        )
     return {"cores_logical": cores_logical}
 
 
@@ -113,14 +115,14 @@ def check_ram() -> dict:
         warn("psutil non installé — pip install psutil")
         return {}
     vm = psutil.virtual_memory()
-    total_gb = vm.total / (1024 ** 3)
-    avail_gb = vm.available / (1024 ** 3)
+    total_gb = vm.total / (1024**3)
+    avail_gb = vm.available / (1024**3)
     info(f"RAM totale    : {total_gb:.1f} Go")
     info(f"RAM disponible: {avail_gb:.1f} Go")
     if total_gb >= 16:
         ok("16 Go ou plus : confortable pour le développement local et l'inférence.")
     elif total_gb >= 8:
-        warn("8–16 Go : suffisant pour le code et l'inférence, mais évite l'entraînement en local.")
+        warn("8-16 Go : suffisant pour le code et l'inférence, mais évite l'entraînement en local.")
     else:
         fail("Moins de 8 Go : entraînement local impossible, inférence à surveiller.")
     return {"total_gb": total_gb, "avail_gb": avail_gb}
@@ -128,7 +130,7 @@ def check_ram() -> dict:
 
 def check_disk() -> dict:
     section("4. Disque")
-    free_gb = shutil.disk_usage(Path.home()).free / (1024 ** 3)
+    free_gb = shutil.disk_usage(Path.home()).free / (1024**3)
     info(f"Espace libre sur le disque utilisateur : {free_gb:.1f} Go")
     if free_gb >= 30:
         ok("Espace suffisant pour Docker, MLflow runs, modèles et datasets.")
@@ -147,19 +149,18 @@ def check_gpu() -> dict:
         for line in out.splitlines()[:15]:
             print(f"    {line}")
         return {"nvidia": True, "raw": out}
-    else:
-        warn("Pas de GPU NVIDIA détectée (nvidia-smi indisponible).")
-        # On tente WMIC ou PowerShell pour nommer la GPU intégrée
-        if platform.system() == "Windows":
-            out = run_cmd(["wmic", "path", "win32_VideoController", "get", "Name"])
-            if out:
-                info("GPU(s) détectée(s) par WMIC :")
-                for line in out.splitlines():
-                    line = line.strip()
-                    if line and line != "Name":
-                        print(f"    - {line}")
-        info("Sans GPU NVIDIA : pas d'entraînement local viable. Utiliser Colab pour l'entraînement.")
-        return {"nvidia": False}
+    warn("Pas de GPU NVIDIA détectée (nvidia-smi indisponible).")
+    # On tente WMIC ou PowerShell pour nommer la GPU intégrée
+    if platform.system() == "Windows":
+        out = run_cmd(["wmic", "path", "win32_VideoController", "get", "Name"])
+        if out:
+            info("GPU(s) détectée(s) par WMIC :")
+            for line in out.splitlines():
+                line = line.strip()
+                if line and line != "Name":
+                    print(f"    - {line}")
+    info("Sans GPU NVIDIA : pas d'entraînement local viable. Utiliser Colab pour l'entraînement.")
+    return {"nvidia": False}
 
 
 def check_python() -> dict:
@@ -236,7 +237,10 @@ def check_inference_latency() -> dict:
     try:
         info("Construction d'un EfficientNetB0 jouet (warmup, peut prendre ~30 s)…")
         from tensorflow.keras.applications import EfficientNetB0
-        model = EfficientNetB0(weights=None, include_top=True, classes=10, input_shape=(160, 160, 3))
+
+        model = EfficientNetB0(
+            weights=None, include_top=True, classes=10, input_shape=(160, 160, 3)
+        )
         x = np.random.rand(1, 160, 160, 3).astype("float32") * 255
         # warmup
         for _ in range(3):
@@ -264,15 +268,18 @@ def check_docker() -> dict:
     out = run_cmd(["docker", "--version"])
     if out:
         ok(out)
-        out2 = run_cmd(["docker", "info", "--format", "{{.ServerVersion}} (containers={{.Containers}})"])
+        out2 = run_cmd(
+            ["docker", "info", "--format", "{{.ServerVersion}} (containers={{.Containers}})"]
+        )
         if out2:
             info(f"Docker engine actif : {out2}")
         else:
             warn("Docker installé mais le daemon ne tourne pas.")
         return {"docker": True}
-    else:
-        warn("Docker non installé. Recommandé pour la phase de containerisation. Voir : https://www.docker.com/products/docker-desktop/")
-        return {"docker": False}
+    warn(
+        "Docker non installé. Recommandé pour la phase de containerisation. Voir : https://www.docker.com/products/docker-desktop/"
+    )
+    return {"docker": False}
 
 
 def check_git() -> dict:
@@ -287,10 +294,17 @@ def check_git() -> dict:
 
 # ----------- main ------------------------------------------------------------
 
+
 def main() -> int:
-    print(f"\n{C['bold']}╔══════════════════════════════════════════════════════════════════════╗{C['reset']}")
-    print(f"{C['bold']}║   Diagnostic machine — projet deepvision-cifar10-classifier         ║{C['reset']}")
-    print(f"{C['bold']}╚══════════════════════════════════════════════════════════════════════╝{C['reset']}")
+    print(
+        f"\n{C['bold']}╔══════════════════════════════════════════════════════════════════════╗{C['reset']}"
+    )
+    print(
+        f"{C['bold']}║   Diagnostic machine — projet deepvision-cifar10-classifier         ║{C['reset']}"
+    )
+    print(
+        f"{C['bold']}╚══════════════════════════════════════════════════════════════════════╝{C['reset']}"
+    )
     print()
 
     report = {}
@@ -323,7 +337,9 @@ def main() -> int:
         warn("Capacités juste — privilégier les opérations légères en local.")
     if not docker_ok:
         info("À installer ensuite : Docker Desktop pour la conteneurisation.")
-    print(f"\n{C['bold']}{C['green']}Diagnostic terminé.{C['reset']} Communique cette sortie à Claude pour ajuster la stratégie.\n")
+    print(
+        f"\n{C['bold']}{C['green']}Diagnostic terminé.{C['reset']} Communique cette sortie à Claude pour ajuster la stratégie.\n"
+    )
     return 0
 
 
