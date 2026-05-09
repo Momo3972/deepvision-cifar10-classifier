@@ -1,0 +1,37 @@
+# =============================================================================
+# monitoring/prometheus.yml - minimal scrape configuration (Phase 7).
+#
+# Phase 7 only declares the targets so the prometheus container boots and the
+# /metrics endpoint surfaced by the Phase 5 serving layer is actually scraped.
+# Phase 8 (Monitoring & Drift) will enrich this file with:
+#   * recording rules for SLI/SLO computations,
+#   * alerting rules (latency p95 > 500ms, model_loaded == 0, etc.),
+#   * additional scrape jobs for the drift-monitor service.
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    project: deepvision-cifar10-classifier
+    env: dev
+
+scrape_configs:
+  # -- The deepvision FastAPI inference service ------------------------------
+  - job_name: deepvision-api
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets:
+          - "api:8000"
+        labels:
+          service: api
+          component: serving
+
+  # -- Prometheus self-scrape (sanity check) --------------------------------
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - "localhost:9090"
+        labels:
+          service: prometheus
