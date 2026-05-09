@@ -19,6 +19,66 @@ The roadmap is detailed in `Audit_DeepVision_CIFAR10.docx` (13 phases).
 
 ---
 
+## [0.8.0] — Phase 7 — Conteneurisation (2026-05-09)
+
+The project now ships as a six-service Docker stack. Audit section 7.5
+prescriptions are met: multi-stage Dockerfiles with non-root runtime,
+per-service healthchecks, `.dockerignore` that prunes the local artefacts,
+named volumes for stateful services, and a dedicated bridge network.
+
+### Added — Docker artefacts (`docker/`)
+- **`api.Dockerfile`** — multi-stage build (builder + runtime) on
+  `python:3.12-slim-bookworm`. Installs runtime deps into an isolated venv,
+  drops the build toolchain, runs as a fixed UID/GID `deepvision` (10001),
+  exposes `:8000`, and wires a `HEALTHCHECK` that hits `/health` via
+  stdlib `urllib` (no extra package pulled into the image).
+- **`streamlit.Dockerfile`** — same builder pattern; entrypoint shells out
+  to `python -m deepvision streamlit`. Healthcheck on
+  `/_stcore/health` (Streamlit's built-in liveness endpoint).
+  `STREAMLIT_BROWSER_GATHER_USAGE_STATS=false` baked in.
+- **`training.Dockerfile`** — CPU-only batch image. Installs both
+  `requirements.txt` and `requirements-dev.txt` so MLflow autologging and
+  test harness work inside the container. Entrypoint is
+  `python -m deepvision train`. No `HEALTHCHECK` (jobs are short-lived).
+
+### Added — Orchestration
+- **`docker-compose.yml`** — six services declared:
+  `api` (`:8000`), `streamlit` (`:8501`), `mlflow` (`:5000`),
+  `prometheus` (`:9090`), `grafana` (`:3000`),
+  and a `drift-monitor` placeholder that sleeps until Phase 8 replaces it
+  with the real drift detector. `depends_on` uses
+  `condition: service_healthy` so the stack boots in dependency order.
+  Named volumes (`mlflow_data`, `prometheus_data`, `grafana_data`)
+  preserve state across `compose down`. Dedicated `deepvision` bridge
+  network keeps DNS predictable.
+- **`monitoring/prometheus.yml`** — minimal scrape config: `deepvision-api`
+  job hitting `api:8000/metrics` every 15 s, plus a Prometheus self-scrape.
+  Phase 8 enriches with recording rules, alerts and the drift-monitor job.
+- **`.dockerignore`** — excludes `.venv`, `mlruns`, `models`, `data`,
+  `tests`, `docs`, `Notebooks`, `.git`, tooling caches, IDE settings, and
+  any local `.env`. Whitelists `.env.example` so `compose up` works
+  out of the box for newcomers.
+- **`.env.example`** — documents every variable consumed by the compose
+  file (API key, model path, log level, MLflow URI, Grafana credentials).
+
+### Added — Tests
+- **`tests/unit/test_docker_artifacts.py`** — ~25 structural tests that
+  parse the YAML/Dockerfile artefacts (no Docker daemon required). Asserts
+  the six-service contract, the per-service healthcheck contract, the
+  multi-stage build contract, the non-root user, the exposed ports, the
+  scrape configuration, the `.dockerignore` exclusions and the
+  `.env.example` documented variables. These tests run in CI even where
+  Docker is unavailable.
+
+### Notes
+- The `training` image is CPU-only by design — GPU training stays on Colab
+  for this project. Phase 10 (ONNX/TFLite export) will revisit whether a
+  CUDA variant is worth shipping.
+- The `drift-monitor` slot is intentionally a sleeping placeholder; it is
+  promoted to a real service in Phase 8.
+
+---
+
 ## [0.7.0] — Phase 6 — Refonte Streamlit (2026-05-08)
 
 The Streamlit demo, previously a 68-line `app.py` at the repository root, has

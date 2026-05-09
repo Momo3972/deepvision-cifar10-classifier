@@ -1,0 +1,236 @@
+# =============================================================================
+# docker-compose.yml - DeepVision local stack (Phase 7).
+#
+# Orchestrates the six services prescribed by the audit (section 7.5):
+#
+#   1. api            - FastAPI inference service (Phase 5).
+#   2. streamlit      - Streamlit demo UI (Phase 6).
+#   3. mlflow         - MLflow tracking server (Phase 3).
+#   4. prometheus     - Metrics scraper.
+#   5. grafana        - Dashboards.
+#   6. drift-monitor  - Phase 8 placeholder (sleeps; replaced when the drift
+#                       module lands).
+#
+# Usage:
+#
+#     cp .env.example .env       # tweak credentials before exposing publicly
+#     docker compose up --build
+#
+#     curl http://localhost:8000/health     # api liveness
+#     curl http://localhost:8000/ready      # api readiness
+#     curl http://localhost:8501/_stcore/health   # streamlit liveness
+#     open http://localhost:5000            # MLflow UI
+#     open http://localhost:9090            # Prometheus UI
+#     open http://localhost:3000            # Grafana UI (admin / admin)
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # 1. FastAPI inference service
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: deepvision-api:dev
+    container_name: deepvision-api
+    ports:
+      - "8000:8000"
+    environment:
+      DEEPVISION_API_HOST: 0.0.0.0
+      DEEPVISION_API_PORT: "8000"
+      DEEPVISION_LOG_LEVEL: ${DEEPVISION_LOG_LEVEL:-info}
+      DEEPVISION_API_KEY: ${DEEPVISION_API_KEY:-}
+      DEEPVISION_MODEL_PATH: ${DEEPVISION_MODEL_PATH:-}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+    volumes:
+      - ./models:/app/models:ro
+    networks:
+      - deepvision
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request, sys;
+          sys.exit(0)
+          if urllib.request.urlopen('http://localhost:8000/health', timeout=3).status == 200
+          else sys.exit(1)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 2. Streamlit demo UI
+  # ---------------------------------------------------------------------------
+  streamlit:
+    build:
+      context: .
+      dockerfile: docker/streamlit.Dockerfile
+    image: deepvision-streamlit:dev
+    container_name: deepvision-streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      DEEPVISION_STREAMLIT_HOST: 0.0.0.0
+      DEEPVISION_STREAMLIT_PORT: "8501"
+      DEEPVISION_LOG_LEVEL: ${DEEPVISION_LOG_LEVEL:-info}
+      DEEPVISION_MODEL_PATH: ${DEEPVISION_MODEL_PATH:-}
+    volumes:
+      - ./models:/app/models:ro
+    networks:
+      - deepvision
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request, sys;
+          sys.exit(0)
+          if urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=3).status == 200
+          else sys.exit(1)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 3. MLflow tracking server (sqlite backend, local artefact store)
+  # ---------------------------------------------------------------------------
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.16.2
+    container_name: deepvision-mlflow
+    ports:
+      - "5000:5000"
+    command: >-
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+    volumes:
+      - mlflow_data:/mlflow
+    networks:
+      - deepvision
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request, sys;
+          sys.exit(0)
+          if urllib.request.urlopen('http://localhost:5000/', timeout=3).status == 200
+          else sys.exit(1)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 4. Prometheus -- scrapes ``api`` /metrics every 15s.
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: deepvision-prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - deepvision
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 5. Grafana -- empty dashboard set in Phase 7; provisioning in Phase 8.
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: deepvision-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - deepvision
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 6. Drift monitor -- Phase 8 placeholder. Sleeps so compose stays green
+  #    while keeping the slot wired up.
+  # ---------------------------------------------------------------------------
+  drift-monitor:
+    image: python:3.12-slim-bookworm
+    container_name: deepvision-drift-monitor
+    command:
+      - python
+      - -c
+      - |
+        import time
+        print("drift-monitor placeholder -- Phase 8 will replace this image with the real drift detector.", flush=True)
+        while True:
+            time.sleep(86400)
+    networks:
+      - deepvision
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+# =============================================================================
+# Named volumes -- survive `docker compose down`. Use `docker compose down -v`
+# to wipe them.
+# =============================================================================
+volumes:
+  mlflow_data:
+  prometheus_data:
+  grafana_data:
+
+# =============================================================================
+# Network -- explicit bridge keeps DNS predictable inside the stack.
+# =============================================================================
+networks:
+  deepvision:
+    driver: bridge
+    name: deepvision

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from deepvision.constants import (
@@ -130,6 +130,33 @@ class Settings(BaseSettings):
         default="0.0.0-untrained",
         description="Semantic version surfaced in API responses and Prometheus labels.",
     )
+
+    @field_validator("model_path", "api_key", mode="before")
+    @classmethod
+    def _empty_string_is_none(cls, value: object) -> object:
+        """Treat an empty / whitespace-only env var as an absent value.
+
+        ``docker compose`` always substitutes ``${VAR:-}`` into the container
+        environment, even when the host ``.env`` line is blank. Without this
+        validator pydantic would:
+
+        - For ``model_path`` (``Path | None``): coerce ``""`` into
+          ``Path("")`` which Python normalises to ``Path(".")`` -- a truthy
+          path that points at the current working directory, leading
+          :class:`~deepvision.serving.inference.InferenceEngine` to feed
+          ``/app`` to ``tf.keras.models.load_model`` and crash with a
+          ``ValueError`` (Keras 3 only accepts ``.keras`` files).
+        - For ``api_key`` (``str | None``): keep the empty string, which is
+          ``is not None`` and triggers the FastAPI middleware to enforce the
+          ``X-API-Key`` header against ``""``, locking out every caller.
+
+        Normalising empty values to ``None`` makes both fields behave the
+        way the audit prescribes when the operator simply did not configure
+        them.
+        """
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     # ----------------- Streamlit (Phase 6) ------------
     streamlit_host: str = Field(
