@@ -1,12 +1,10 @@
 # =============================================================================
-# monitoring/prometheus.yml - minimal scrape configuration (Phase 7).
+# monitoring/prometheus.yml - scrape + alerting configuration.
 #
-# Phase 7 only declares the targets so the prometheus container boots and the
-# /metrics endpoint surfaced by the Phase 5 serving layer is actually scraped.
-# Phase 8 (Monitoring & Drift) will enrich this file with:
-#   * recording rules for SLI/SLO computations,
-#   * alerting rules (latency p95 > 500ms, model_loaded == 0, etc.),
-#   * additional scrape jobs for the drift-monitor service.
+# Phase 7 (Conteneurisation) declared the api scrape job. Phase 8 (Monitoring
+# & Drift) wires the alerting rules from ``alerts.yml`` and adds the scrape
+# job for the new ``drift-monitor`` service that exposes embedding drift +
+# OOD rate gauges on :9091.
 # =============================================================================
 
 global:
@@ -16,8 +14,13 @@ global:
     project: deepvision-cifar10-classifier
     env: dev
 
+# Phase 8 - alerting rules loaded from a sibling file mounted into the
+# container at /etc/prometheus/alerts.yml.
+rule_files:
+  - "/etc/prometheus/alerts.yml"
+
 scrape_configs:
-  # -- The deepvision FastAPI inference service ------------------------------
+  # -- The deepvision FastAPI inference service (Phase 5) -------------------
   - job_name: deepvision-api
     metrics_path: /metrics
     scheme: http
@@ -27,6 +30,19 @@ scrape_configs:
         labels:
           service: api
           component: serving
+
+  # -- The deepvision drift-monitor exporter (Phase 8) ----------------------
+  # Reuses the api Docker image with a different entrypoint
+  # (``python -m deepvision drift-monitor``); exposes Prometheus on :9091.
+  - job_name: deepvision-drift-monitor
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets:
+          - "drift-monitor:9091"
+        labels:
+          service: drift-monitor
+          component: monitoring
 
   # -- Prometheus self-scrape (sanity check) --------------------------------
   - job_name: prometheus

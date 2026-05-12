@@ -15,7 +15,7 @@ build-backend = "setuptools.build_meta"
 # ---------------------------------------------------------------------------
 [project]
 name = "deepvision-cifar10-classifier"
-version = "0.8.0"
+version = "0.9.0"
 description = "Industrial Computer Vision pipeline on CIFAR-10 with EfficientNetB0 transfer learning, MLflow, FastAPI, Docker, and CI/CD."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"

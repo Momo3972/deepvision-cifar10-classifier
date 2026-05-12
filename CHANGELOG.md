@@ -19,6 +19,90 @@ The roadmap is detailed in `Audit_DeepVision_CIFAR10.docx` (13 phases).
 
 ---
 
+## [0.9.0] — Phase 8 — Monitoring & Drift (2026-05-10)
+
+The Phase 7 placeholder `drift-monitor` is replaced by a real Prometheus
+exporter that periodically computes embedding drift and OOD rate against a
+baseline distribution. The audit prescriptions of section 7.2
+(Computer Vision specifics) and section 9 (roadmap, Phase 8) are met.
+
+### Added — `src/deepvision/monitoring/`
+- **`drift.py`** — pure-NumPy Wasserstein-1D drift on penultimate-layer
+  embeddings. Functions: `wasserstein_drift(baseline, current)`,
+  `summarize_drift(distances, percentile=95)`, `drift_score(baseline,
+  current)` shortcut for the Prometheus gauge update path.
+- **`ood.py`** — energy-score OOD detection (Liu et al. 2020,
+  `E(x) = -T·logsumexp(z/T)`), with `is_ood(scores, threshold)`,
+  `ood_rate(scores, threshold)`, and an `extract_logits(model, batch)`
+  helper that recovers logits via penultimate-features × Dense weights
+  (no fragile in-place model surgery).
+- **`baseline.py`** — `Baseline` dataclass with `save`/`load` to a
+  single `.npz`, `compute_baseline(model, images, ...)` that pairs
+  embeddings with energy scores, and a `synthetic_reference_images()`
+  helper for smoke tests.
+- **`server.py`** — `DriftMonitor` class wrapping a
+  `prometheus_client.start_http_server` on :9091. Polls every interval,
+  samples a synthetic batch (or operator-provided stream later), updates
+  drift + OOD gauges and counters. Reuses the FastAPI `InferenceEngine`
+  so a single canonical model load serves both serving and monitoring.
+
+### Added — CLI
+- `python -m deepvision drift-monitor [--port 9091] [--interval 60]
+  [--baseline ./models/baseline.npz] [--ood-threshold -2.0]` boots the
+  exporter. Same Typer pattern as `serve` and `streamlit`.
+
+### Added — Monitoring artefacts (`monitoring/`)
+- **`alerts.yml`** — eight Prometheus alert rules grouped in two
+  families: `deepvision-api` (DeepvisionApiDown, ModelNotLoaded,
+  HighInferenceLatencyP95, HighErrorRate) and `deepvision-drift`
+  (BaselineMissing, EmbeddingDriftHigh, EmbeddingDriftCritical,
+  OodRateHigh).
+- **`grafana/provisioning/datasources/prometheus.yml`** — Grafana
+  auto-loads the in-cluster Prometheus on http://prometheus:9090 with a
+  stable UID `deepvision-prometheus`.
+- **`grafana/provisioning/dashboards/dashboards.yml`** — provider that
+  scans `/var/lib/grafana/dashboards` on every restart.
+- **`grafana/dashboards/deepvision.json`** — six-panel dashboard:
+  model_loaded stat, RPS, error rate, OOD rate, latency p50/p95/p99
+  timeseries, embedding drift mean/p95/max timeseries.
+- **`prometheus.yml`** — adds `rule_files: [/etc/prometheus/alerts.yml]`
+  and a new scrape job `deepvision-drift-monitor` targeting
+  `drift-monitor:9091`.
+
+### Changed — `docker-compose.yml`
+- `drift-monitor` now uses `deepvision-api:dev` (the same image already
+  built for the api service) with `entrypoint: python -m deepvision
+  drift-monitor`. No fourth Docker image to ship.
+- `prometheus` mounts `./monitoring/alerts.yml` read-only so the rules
+  load at boot.
+- `grafana` mounts `./monitoring/grafana/provisioning` and
+  `./monitoring/grafana/dashboards` read-only so the datasource and
+  dashboard import without any UI clicking.
+
+### Added — Tests
+- **`tests/unit/test_drift.py`** — 11 tests on the Wasserstein
+  primitives (zero on identical, monotone in shift, scalar shortcut,
+  shape/empty validation).
+- **`tests/unit/test_ood.py`** — 9 tests on the energy score
+  (closed-form value at zero logits, lower for confident predictions,
+  temperature smoothing, threshold logic, OOD rate fraction).
+- **`tests/unit/test_baseline.py`** — 7 tests: dataclass properties,
+  `.npz` round-trip, parent-dir creation, synthetic image determinism.
+- **`tests/unit/test_monitoring_server.py`** — 5 end-to-end tests using
+  a tiny hand-built Functional model and a stub `InferenceEngine`:
+  initialize loads engine + baseline, `poll_once` updates the gauges,
+  `/metrics` exposes the expected eight series.
+- **`tests/unit/test_monitoring_artifacts.py`** — ~20 structural tests
+  on `alerts.yml` (required alerts present with severity + summary),
+  the dashboard JSON (≥6 panels, datasource UID matches provisioning,
+  panels query `deepvision_*` metrics), the Grafana provisioning files,
+  and the new `prometheus.yml` additions (rule_files, drift-monitor
+  scrape job and target).
+- **`tests/unit/test_docker_artifacts.py`** — drops the `drift-monitor`
+  exemption now that the service has a real healthcheck.
+
+---
+
 ## [0.8.0] — Phase 7 — Conteneurisation (2026-05-09)
 
 The project now ships as a six-service Docker stack. Audit section 7.5

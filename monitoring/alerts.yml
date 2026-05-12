@@ -1,0 +1,139 @@
+# =============================================================================
+# monitoring/alerts.yml - Prometheus alerting rules for the deepvision stack
+# (Phase 8).
+#
+# Loaded by Prometheus via the ``rule_files`` directive in
+# ``monitoring/prometheus.yml``. Rules are intentionally conservative -- they
+# fire only on issues that warrant human attention, with windows wide enough
+# to absorb transient noise (cold-start latency on the api, scrape gaps).
+# =============================================================================
+
+groups:
+  # ---------------------------------------------------------------------------
+  # Inference service health
+  # ---------------------------------------------------------------------------
+  - name: deepvision-api
+    interval: 30s
+    rules:
+      - alert: DeepvisionApiDown
+        expr: up{job="deepvision-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: serving
+        annotations:
+          summary: "FastAPI inference service is down"
+          description: |
+            Prometheus has been unable to scrape ``deepvision-api`` for over
+            2 minutes. Check the api container logs and the readiness probe at
+            ``/ready``.
+
+      - alert: DeepvisionModelNotLoaded
+        expr: deepvision_model_loaded == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: serving
+        annotations:
+          summary: "Model is not loaded in the inference engine"
+          description: |
+            The api process is up but ``deepvision_model_loaded`` has been 0
+            for 2 minutes -- the lazy-loading path likely failed. Inspect the
+            container logs for the InferenceEngine load error and check that
+            ``DEEPVISION_MODEL_PATH`` points at a readable artefact.
+
+      - alert: DeepvisionHighInferenceLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(deepvision_inference_latency_seconds_bucket[5m]))
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: serving
+        annotations:
+          summary: "Inference p95 latency above 500 ms"
+          description: |
+            ``/predict`` p95 latency exceeded 500 ms over a 10-minute window.
+            Suspect: GC pressure, cold model after restart, batch payload
+            size growth, or contention with another container on the host.
+
+      - alert: DeepvisionHighErrorRate
+        expr: |
+          sum(rate(deepvision_http_errors_total[5m]))
+            / clamp_min(sum(rate(deepvision_http_requests_total[5m])), 1)
+          > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          component: serving
+        annotations:
+          summary: "Inference error rate above 5%"
+          description: |
+            More than 5 % of HTTP requests have returned 4xx/5xx over a
+            10-minute window. Check ``/predict`` for malformed payloads and
+            ``deepvision_http_errors_total{status_class="5xx"}`` for server
+            faults.
+
+  # ---------------------------------------------------------------------------
+  # Model behaviour (Phase 8 drift-monitor)
+  # ---------------------------------------------------------------------------
+  - name: deepvision-drift
+    interval: 60s
+    rules:
+      - alert: DeepvisionBaselineMissing
+        expr: deepvision_baseline_loaded == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Drift monitor has no baseline loaded"
+          description: |
+            ``deepvision_baseline_loaded`` has been 0 for 5 minutes -- the
+            drift-monitor container started but failed to load or compute a
+            baseline. Check the configured ``--baseline`` path and the
+            ``deepvision-drift-monitor`` container logs.
+
+      - alert: DeepvisionEmbeddingDriftHigh
+        expr: deepvision_drift_score > 0.25
+        for: 30m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Embedding drift score above threshold"
+          description: |
+            Mean per-dimension Wasserstein drift on penultimate-layer
+            embeddings has stayed above 0.25 for 30 minutes. The production
+            input distribution has likely shifted away from the training
+            distribution -- consider a refresh of the baseline or a
+            retraining cycle.
+
+      - alert: DeepvisionEmbeddingDriftCritical
+        expr: deepvision_drift_score > 1.0
+        for: 10m
+        labels:
+          severity: critical
+          component: monitoring
+        annotations:
+          summary: "Embedding drift score critically high"
+          description: |
+            Mean per-dimension Wasserstein drift exceeded 1.0 for 10 minutes.
+            The inputs are far from anything the model has seen -- likely a
+            broken upstream pipeline or a deliberate adversarial probe.
+
+      - alert: DeepvisionOodRateHigh
+        expr: deepvision_ood_rate > 0.20
+        for: 30m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "OOD rate above 20% sustained"
+          description: |
+            More than 20 % of monitored samples have been flagged as
+            out-of-distribution by the energy score for 30 minutes. Either
+            the OOD threshold is mis-calibrated, or production traffic is
+            heavily contaminated with unrecognised inputs.

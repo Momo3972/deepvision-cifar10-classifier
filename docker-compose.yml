@@ -155,6 +155,7 @@ services:
       - "--web.enable-lifecycle"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     networks:
       - deepvision
@@ -183,6 +184,8 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - deepvision
     depends_on:
@@ -197,25 +200,50 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # 6. Drift monitor -- Phase 8 placeholder. Sleeps so compose stays green
-  #    while keeping the slot wired up.
+  # 6. Drift monitor (Phase 8) -- Wasserstein drift + energy-score OOD.
+  #    Reuses the api image with a different entrypoint so we don't ship a
+  #    fourth Docker image (audit-aligned: minimal image inventory).
   # ---------------------------------------------------------------------------
   drift-monitor:
-    image: python:3.12-slim-bookworm
+    image: deepvision-api:dev
     container_name: deepvision-drift-monitor
-    command:
-      - python
-      - -c
-      - |
-        import time
-        print("drift-monitor placeholder -- Phase 8 will replace this image with the real drift detector.", flush=True)
-        while True:
-            time.sleep(86400)
+    ports:
+      - "9091:9091"
+    environment:
+      DEEPVISION_LOG_LEVEL: ${DEEPVISION_LOG_LEVEL:-info}
+      DEEPVISION_MODEL_PATH: ${DEEPVISION_MODEL_PATH:-}
+      DEEPVISION_BASELINE_PATH: ${DEEPVISION_BASELINE_PATH:-/app/models/baseline.npz}
+    volumes:
+      # Read-only baseline artefact, optional. When the file is missing the
+      # monitor falls back to a synthetic baseline (cf. server.py).
+      - ./models:/app/models:ro
     networks:
       - deepvision
     depends_on:
       api:
         condition: service_healthy
+    entrypoint: ["python", "-m", "deepvision", "drift-monitor"]
+    command:
+      - "--port"
+      - "9091"
+      - "--interval"
+      - "60"
+      - "--baseline"
+      - "/app/models/baseline.npz"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request, sys;
+          sys.exit(0)
+          if urllib.request.urlopen('http://localhost:9091/metrics', timeout=3).status == 200
+          else sys.exit(1)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
 
 # =============================================================================

@@ -55,7 +55,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     DEEPVISION_API_HOST=0.0.0.0 \
     DEEPVISION_API_PORT=8000 \
-    DEEPVISION_LOG_LEVEL=info
+    DEEPVISION_LOG_LEVEL=info \
+    MPLCONFIGDIR=/tmp/matplotlib
 
 # Non-root user. Use a fixed UID/GID so the bind-mounted ./models keeps
 # predictable ownership across hosts.

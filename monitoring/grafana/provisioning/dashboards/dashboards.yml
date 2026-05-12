@@ -1,0 +1,24 @@
+# =============================================================================
+# Grafana dashboard auto-provisioning (Phase 8).
+#
+# Tells Grafana to scan a folder of JSON dashboards on disk and import them
+# into the "DeepVision" folder of the UI on every restart.
+#
+# The dashboards directory is mounted from the host via docker-compose:
+#   ./monitoring/grafana/dashboards -> /var/lib/grafana/dashboards
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: deepvision
+    orgId: 1
+    folder: DeepVision
+    type: file
+    disableDeletion: true
+    editable: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

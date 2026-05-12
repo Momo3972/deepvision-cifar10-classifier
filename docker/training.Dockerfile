@@ -52,7 +52,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
     DEEPVISION_LOG_LEVEL=info \
-    MLFLOW_TRACKING_URI=file:/app/mlruns
+    MLFLOW_TRACKING_URI=file:/app/mlruns \
+    MPLCONFIGDIR=/tmp/matplotlib
 
 RUN groupadd --system --gid 10001 deepvision \
     && useradd --system --uid 10001 --gid deepvision --shell /usr/sbin/nologin deepvision
