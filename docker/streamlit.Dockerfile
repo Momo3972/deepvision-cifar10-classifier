@@ -52,7 +52,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DEEPVISION_STREAMLIT_HOST=0.0.0.0 \
     DEEPVISION_STREAMLIT_PORT=8501 \
     DEEPVISION_LOG_LEVEL=info \
-    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+    MPLCONFIGDIR=/tmp/matplotlib
 
 RUN groupadd --system --gid 10001 deepvision \
     && useradd --system --uid 10001 --gid deepvision --shell /usr/sbin/nologin deepvision

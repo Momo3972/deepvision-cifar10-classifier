@@ -1,0 +1,26 @@
+# =============================================================================
+# Grafana datasource auto-provisioning (Phase 8).
+#
+# Loaded by Grafana at boot via the volume mount declared in
+# ``docker-compose.yml`` (``./monitoring/grafana/provisioning`` ->
+# ``/etc/grafana/provisioning``).
+#
+# Wires the in-cluster Prometheus container (DNS name ``prometheus`` on
+# the ``deepvision`` bridge network, port 9090) as the default Grafana
+# datasource so the bundled dashboard works out of the box -- no clicking
+# required.
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: deepvision-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+      httpMethod: POST

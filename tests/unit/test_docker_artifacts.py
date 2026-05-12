@@ -120,15 +120,13 @@ def test_compose_grafana_exposes_3000(compose_data: dict) -> None:
     assert "3000:3000" in grafana["ports"]
 
 
-@pytest.mark.parametrize(
-    "service",
-    sorted(REQUIRED_COMPOSE_SERVICES - {"drift-monitor"}),
-)
+@pytest.mark.parametrize("service", sorted(REQUIRED_COMPOSE_SERVICES))
 def test_compose_long_running_services_have_a_healthcheck(compose_data: dict, service: str) -> None:
     """Every long-running service must declare a healthcheck.
 
-    ``drift-monitor`` is exempt: in Phase 7 it is a placeholder that just
-    sleeps; Phase 8 will replace it with a real image with its own probe.
+    Since Phase 8, the ``drift-monitor`` placeholder is replaced by the real
+    Prometheus exporter that exposes ``/metrics`` on :9091 and probes itself
+    via stdlib ``urllib`` -- no service is exempt anymore.
     """
     spec = compose_data["services"][service]
     assert "healthcheck" in spec, f"{service} is missing a healthcheck"

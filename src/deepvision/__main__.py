@@ -8,6 +8,7 @@ Subcommands
 - ``train``:     train one of the registered models with full MLflow tracking.
 - ``serve``:     launch the FastAPI inference service via uvicorn.
 - ``streamlit``: launch the Streamlit demo UI (Phase 6 refonte).
+- ``drift-monitor``: launch the Prometheus drift + OOD exporter (Phase 8).
 
 Usage
 -----
@@ -19,6 +20,7 @@ Usage
     python -m deepvision train --model efficientnet --epochs 1 --quick
     python -m deepvision serve --host 0.0.0.0 --port 8000
     python -m deepvision streamlit --port 8501
+    python -m deepvision drift-monitor --port 9091 --interval 60
 """
 
 from __future__ import annotations
@@ -263,6 +265,64 @@ def streamlit(
         "true" if headless else "false",
     ]
     sys.exit(stcli.main())
+
+
+@app.command(name="drift-monitor")
+def drift_monitor(
+    port: int = typer.Option(
+        9091,
+        "--port",
+        "-p",
+        min=1,
+        max=65535,
+        help="TCP port exposed by the Prometheus exporter.",
+    ),
+    interval: float = typer.Option(
+        60.0,
+        "--interval",
+        "-i",
+        min=1.0,
+        help="Seconds between two drift polling cycles.",
+    ),
+    baseline: str = typer.Option(
+        "",
+        "--baseline",
+        help=(
+            "Optional path to a baseline .npz file. When omitted (or the file is "
+            "missing) the monitor computes a synthetic baseline at boot - useful "
+            "for smoke tests but statistically meaningless."
+        ),
+    ),
+    ood_threshold: float = typer.Option(
+        -2.0,
+        "--ood-threshold",
+        help="Energy threshold above which a sample is flagged out-of-distribution.",
+    ),
+) -> None:
+    """Launch the Phase 8 drift + OOD Prometheus exporter.
+
+    Examples
+    --------
+    Local run with a real baseline computed at training time::
+
+        python -m deepvision drift-monitor --baseline ./models/baseline.npz
+
+    Smoke test (no baseline, synthetic data)::
+
+        python -m deepvision drift-monitor --port 9091 --interval 30
+    """
+    # Heavy imports deferred so ``--help`` stays cheap.
+    from pathlib import Path
+
+    from deepvision.monitoring.server import run
+
+    typer.echo(f"deepvision drift-monitor v{__version__} -- Prometheus exporter on :{port}")
+    run(
+        port=port,
+        interval=interval,
+        baseline_path=Path(baseline) if baseline.strip() else None,
+        ood_threshold=ood_threshold,
+    )
 
 
 def main() -> None:  # pragma: no cover -- entrypoint
