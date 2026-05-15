@@ -78,7 +78,7 @@ class Settings(BaseSettings):
 
     # ----------------- Serving (Phase 5) --------------
     api_host: str = Field(
-        default="0.0.0.0",
+        default="0.0.0.0",  # nosec B104 - bind-all is intentional inside containers; override via DEEPVISION_API_HOST when running on a bare host.
         description="Host interface the FastAPI server binds to.",
     )
     api_port: int = Field(
@@ -160,7 +160,7 @@ class Settings(BaseSettings):
 
     # ----------------- Streamlit (Phase 6) ------------
     streamlit_host: str = Field(
-        default="0.0.0.0",
+        default="0.0.0.0",  # nosec B104 - bind-all is intentional inside containers; override via DEEPVISION_STREAMLIT_HOST when running on a bare host.
         description="Host interface the Streamlit demo binds to.",
     )
     streamlit_port: int = Field(

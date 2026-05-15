@@ -1,0 +1,68 @@
+name: Model issue
+description: Report a problem with model accuracy, calibration, robustness, interpretability, or behaviour on a specific class of inputs.
+title: "[model] "
+labels: ["model", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when the model itself misbehaves -- not when the
+        serving stack returns an HTTP error (use the bug template for that).
+
+  - type: input
+    id: model-version
+    attributes:
+      label: Model version
+      description: From `/meta` or the MLflow run ID. e.g. `efficientnet_b0_transfer @ 1.2.0`.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: failure-mode
+    attributes:
+      label: Failure mode
+      options:
+        - Misclassification on a clear in-distribution image
+        - Low confidence on a clear in-distribution image
+        - High confidence on an out-of-distribution image (false negative on OOD)
+        - Calibration drift (ECE > expected)
+        - Embedding drift triggered an alert
+        - Grad-CAM highlights an irrelevant region
+        - Performance regression vs a previous version
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: input
+    attributes:
+      label: Input description
+      description: What was the input? Class, source, resolution, format. Attach the image if possible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-vs-observed
+    attributes:
+      label: Expected vs observed
+      placeholder: |
+        Expected: cat with confidence > 0.7
+        Observed: dog with confidence 0.93
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Relevant metrics (optional)
+      description: top-k probabilities, energy score, drift score, ECE, ...
+      render: text
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      placeholder: |
+        curl -X POST -F "file=@my_cat.jpg" http://localhost:8000/predict
+      render: bash

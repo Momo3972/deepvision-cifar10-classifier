@@ -1,0 +1,190 @@
+# =============================================================================
+# .github/workflows/security.yml -- Security scans (Phase 9).
+#
+# Runs on push/PR to main and on a weekly cron (Monday 06:00 UTC) so newly
+# disclosed CVEs are caught even when no code change happens for a while.
+#
+# Scans included:
+#   * bandit    -> static analysis of Python source
+#   * pip-audit -> known CVEs in resolved Python dependencies
+#   * gitleaks  -> secrets in the git history
+#   * codeql    -> GitHub native SAST
+#   * trivy     -> Docker image vulnerabilities -- only on tag `v*` to keep
+#                  the routine CI minutes manageable (our images are ~3 GB).
+# =============================================================================
+
+name: security
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"  # every Monday 06:00 UTC
+
+permissions:
+  contents: read
+  security-events: write  # required by CodeQL to upload SARIF results
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. bandit -- static analysis of the source tree
+  # ---------------------------------------------------------------------------
+  bandit:
+    name: bandit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install bandit
+        run: |
+          python -m pip install --upgrade pip
+          grep '^bandit' requirements-dev.txt | xargs python -m pip install
+
+      - name: bandit on src/
+        # -ll  -> only MEDIUM and HIGH severity findings fail the build.
+        # -ii  -> only HIGH and MEDIUM confidence findings count.
+        run: bandit -r src -ll -ii
+
+  # ---------------------------------------------------------------------------
+  # 2. pip-audit -- CVE scan of resolved dependencies
+  # ---------------------------------------------------------------------------
+  pip-audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          grep '^pip-audit' requirements-dev.txt | xargs python -m pip install
+
+      - name: Audit runtime requirements
+        # ``--disable-pip`` would require either a hashed requirements file
+        # or ``--no-deps``; we want full transitive scanning, so we let
+        # pip-audit use pip to resolve the dependency graph.
+        #
+        # Ignored vulnerabilities (review on every dependabot bump):
+        #   * PYSEC-2025-52 (mlflow 2.22.5) -- fix in mlflow 3.1.0.
+        #     We pin ``mlflow>=2.16,<3.0`` for now to avoid a major
+        #     version bump mid-phase; the bump is tracked as a future
+        #     PR. The vuln scope (MLflow Server UI / REST) does not
+        #     match our threat model: the mlflow container is only
+        #     reachable on the internal ``deepvision`` Docker network
+        #     and never exposed to untrusted callers.
+        run: |
+          pip-audit \
+            --requirement requirements.txt \
+            --ignore-vuln PYSEC-2025-52
+
+  # ---------------------------------------------------------------------------
+  # 3. gitleaks -- secret leakage scan over the git history
+  # ---------------------------------------------------------------------------
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history is required so gitleaks can scan past commits.
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # 4. CodeQL -- GitHub native SAST
+  # ---------------------------------------------------------------------------
+  codeql:
+    name: codeql
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          queries: security-and-quality
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:python
+
+  # ---------------------------------------------------------------------------
+  # 5. Trivy -- container vulnerability scan (TAG ONLY -- audit tradeoff)
+  # ---------------------------------------------------------------------------
+  trivy:
+    name: trivy (image scan)
+    # Skip on push/PR; only run on tag releases. Building 3 x ~3GB images then
+    # scanning them takes ~15 min and is overkill on every push.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - { name: api,       dockerfile: docker/api.Dockerfile }
+          - { name: streamlit, dockerfile: docker/streamlit.Dockerfile }
+          - { name: training,  dockerfile: docker/training.Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.image.name }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          push: false
+          tags: deepvision-${{ matrix.image.name }}:scan
+          load: true
+          cache-from: type=gha,scope=${{ matrix.image.name }}
+          cache-to: type=gha,scope=${{ matrix.image.name }},mode=max
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: deepvision-${{ matrix.image.name }}:scan
+          format: sarif
+          output: trivy-${{ matrix.image.name }}.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"  # Don't break the release; surface findings via SARIF.
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.image.name }}.sarif
+          category: trivy-${{ matrix.image.name }}

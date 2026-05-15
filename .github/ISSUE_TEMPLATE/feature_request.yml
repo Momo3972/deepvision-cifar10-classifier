@@ -1,0 +1,56 @@
+name: Feature request
+description: Propose an enhancement to deepvision (API endpoint, training option, monitoring metric, dashboard panel, ...).
+title: "[feature] "
+labels: ["enhancement", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggest a new capability. If your request maps onto a phase of
+        `Audit_DeepVision_CIFAR10.docx`, link the section to help triage.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem you are trying to solve
+      placeholder: "I need to ... but currently ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What change would make this easier? Sketch the API / CLI / UI shape if relevant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways to solve the problem and why you ruled them out.
+
+  - type: input
+    id: audit-section
+    attributes:
+      label: Audit section (if any)
+      description: Which section of `Audit_DeepVision_CIFAR10.docx` does this relate to?
+      placeholder: "e.g. 7.4 Serving / API"
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - api
+        - streamlit
+        - training
+        - monitoring (drift / OOD / Grafana)
+        - docker / compose
+        - ci / cd
+        - documentation
+        - other
+    validations:
+      required: true

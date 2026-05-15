@@ -1,0 +1,96 @@
+# =============================================================================
+# .github/workflows/docker.yml -- Build & push to GHCR (Phase 9).
+#
+# Builds the three Docker images (api, streamlit, training) and pushes them
+# to the GitHub Container Registry under ghcr.io/<owner>/deepvision-<name>.
+#
+# Trigger matrix:
+#   * push to main          -> tags `latest` + `<short-sha>`
+#   * push of a tag `v*`    -> tags `<semver>` + `<major.minor>` + `latest`
+#   * pull_request          -> build only (no push), to validate Dockerfiles
+#
+# Auth: GITHUB_TOKEN is auto-provided by GitHub Actions; no secret to set up.
+# =============================================================================
+
+name: docker
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+    paths:
+      - "docker/**"
+      - "src/**"
+      - "requirements.txt"
+      - "requirements-dev.txt"
+      - "pyproject.toml"
+      - ".dockerignore"
+      - ".github/workflows/docker.yml"
+
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write  # required to push to GHCR
+
+jobs:
+  build-push:
+    name: build & push ${{ matrix.image.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - { name: api,       dockerfile: docker/api.Dockerfile }
+          - { name: streamlit, dockerfile: docker/streamlit.Dockerfile }
+          - { name: training,  dockerfile: docker/training.Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        # Skip login on PRs from forks (no push perms anyway).
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/deepvision-${{ matrix.image.name }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=deepvision-${{ matrix.image.name }}
+            org.opencontainers.image.description=DeepVision CIFAR-10 ${{ matrix.image.name }} service
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build (and push if not PR) ${{ matrix.image.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image.name }}
+          cache-to: type=gha,scope=${{ matrix.image.name }},mode=max
+          provenance: false  # Keeps the manifest list smaller and avoids the
+                              # extra attestation manifest rejected by some
+                              # downstream registries.

@@ -1,0 +1,17 @@
+# =============================================================================
+# .github/ISSUE_TEMPLATE/config.yml -- Issue chooser configuration (Phase 9).
+#
+# Disables blank issues so contributors land on one of the structured forms
+# below. The contact links surface the audit + the roadmap so newcomers find
+# context without opening an issue first.
+# =============================================================================
+
+blank_issues_enabled: false
+
+contact_links:
+  - name: Audit and roadmap
+    url: https://github.com/Momo3972/deepvision-cifar10-classifier/blob/main/Audit_DeepVision_CIFAR10.docx
+    about: Read the 13-phase industrial refactor roadmap before opening an issue.
+  - name: CHANGELOG
+    url: https://github.com/Momo3972/deepvision-cifar10-classifier/blob/main/CHANGELOG.md
+    about: Check whether your concern is already addressed in a recent release.

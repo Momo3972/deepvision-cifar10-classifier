@@ -1,0 +1,64 @@
+name: Drift report
+description: Report a sustained drift / OOD-rate alert observed in production via the Phase 8 monitoring stack.
+title: "[drift] "
+labels: ["monitoring", "drift", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when the Prometheus alerting in
+        `monitoring/alerts.yml` fires and stays firing for the operational
+        duration. Attach the relevant Grafana screenshots if available.
+
+  - type: dropdown
+    id: alert
+    attributes:
+      label: Which alert fired?
+      options:
+        - DeepvisionEmbeddingDriftHigh (mean drift > 0.25 for 30m)
+        - DeepvisionEmbeddingDriftCritical (mean drift > 1.0 for 10m)
+        - DeepvisionOodRateHigh (OOD rate > 20% for 30m)
+        - DeepvisionBaselineMissing (baseline_loaded == 0 for 5m)
+    validations:
+      required: true
+
+  - type: input
+    id: model-version
+    attributes:
+      label: Model version on the API
+      description: From `/meta` or the `model_version` label on the gauge.
+      placeholder: "efficientnet_b0_transfer @ 1.2.0"
+    validations:
+      required: true
+
+  - type: input
+    id: time-window
+    attributes:
+      label: Time window of the alert
+      placeholder: "2026-05-12 08:30 -> 09:15 UTC"
+    validations:
+      required: true
+
+  - type: textarea
+    id: grafana
+    attributes:
+      label: Grafana screenshots / Prometheus query results
+      description: Paste images or copy the relevant PromQL output.
+
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Suspected root cause
+      placeholder: |
+        Possible upstream change in the input pipeline; large surge of OOD
+        uploads from a new client; baseline computed too long ago; ...
+
+  - type: textarea
+    id: action-taken
+    attributes:
+      label: Action taken so far
+      placeholder: |
+        - Refreshed the baseline with `compute_baseline ...`
+        - Rolled the model back to vN-1
+        - Increased the OOD threshold to ...
