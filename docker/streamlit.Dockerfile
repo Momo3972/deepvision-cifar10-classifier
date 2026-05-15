@@ -20,7 +20,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1 - builder
 # -----------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS builder
+FROM python:3.14-slim-bookworm AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -44,7 +44,7 @@ RUN pip install --upgrade pip \
 # -----------------------------------------------------------------------------
 # Stage 2 - runtime
 # -----------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.14-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
