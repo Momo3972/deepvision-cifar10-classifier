@@ -87,6 +87,16 @@ marks from `ci`, `security` and (release-only) `docker` workflows.
   coverage, Python 3.11 / 3.12 support, MIT licence, and a link to the
   GHCR container packages.
 
+### Known issues
+- **PYSEC-2025-52** (mlflow 2.22.5 → fix in 3.1.0). We pin
+  `mlflow>=2.16,<3.0` to avoid a mid-phase major version bump, and
+  whitelist this CVE in `pip-audit` via `--ignore-vuln PYSEC-2025-52`
+  inside `security.yml`. The vulnerability's scope (MLflow Server UI /
+  REST) does not match our threat model: the mlflow container is only
+  reachable on the internal `deepvision` Docker network and never
+  exposed to untrusted callers. Bump tracked as a follow-up PR (will
+  also be proposed automatically by dependabot's `ml-stack` group).
+
 ---
 
 ## [0.9.0] — Phase 8 — Monitoring & Drift (2026-05-10)
