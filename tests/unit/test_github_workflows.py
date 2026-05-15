@@ -168,16 +168,52 @@ def test_docker_name(docker: dict) -> None:
     assert docker["name"] == "docker"
 
 
+def _image_registry(image_ref: str) -> str:
+    """Return the registry hostname of an OCI image reference.
+
+    Strips any trailing tag (``:v1``) or digest (``@sha256:...``), then
+    keeps only the part before the first ``/`` -- which is the registry
+    by the OCI distribution spec, e.g. ``ghcr.io/momo3972/deepvision-api``
+    -> ``ghcr.io``. A reference without a slash (e.g. ``python:3.12``)
+    has the implicit Docker Hub registry; we return an empty string in
+    that case so the caller can detect it.
+    """
+    # Drop digest suffix first, then tag suffix.
+    image_ref = image_ref.split("@", 1)[0]
+    image_ref = image_ref.split(":", 1)[0]
+    if "/" not in image_ref:
+        return ""
+    return image_ref.split("/", 1)[0]
+
+
 def test_docker_pushes_to_ghcr(docker: dict) -> None:
-    """The audit prescribes GHCR (free, native GITHUB_TOKEN auth)."""
+    """The audit prescribes GHCR (free, native GITHUB_TOKEN auth).
+
+    Inspects the ``images:`` input of the ``docker/metadata-action`` step
+    and validates that **every** image reference resolves to the
+    ``ghcr.io`` registry. Parsing the structured field is more robust
+    than a substring search and avoids CodeQL's
+    *Incomplete URL substring sanitization* warning.
+    """
     steps = docker["jobs"]["build-push"]["steps"]
-    found = False
+
+    image_refs: list[str] = []
     for step in steps:
-        with_block = step.get("with", {})
-        if "ghcr.io" in str(with_block):
-            found = True
-            break
-    assert found, "Expected docker.yml to reference ghcr.io"
+        with_block = step.get("with")
+        if not isinstance(with_block, dict):
+            continue
+        images_field = with_block.get("images")
+        if not images_field:
+            continue
+        # The action accepts a single string or a YAML block-list of strings.
+        if isinstance(images_field, str):
+            image_refs.extend(line.strip() for line in images_field.splitlines() if line.strip())
+        elif isinstance(images_field, list):
+            image_refs.extend(str(item).strip() for item in images_field if str(item).strip())
+
+    assert image_refs, "Expected docker/metadata-action to declare at least one image"
+    for ref in image_refs:
+        assert _image_registry(ref) == "ghcr.io", f"Image reference {ref!r} does not target ghcr.io"
 
 
 def test_docker_builds_all_three_images(docker: dict) -> None:

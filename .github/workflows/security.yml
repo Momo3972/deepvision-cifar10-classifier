@@ -83,9 +83,10 @@ jobs:
           grep '^pip-audit' requirements-dev.txt | xargs python -m pip install
 
       - name: Audit runtime requirements
-        # --strict makes pip-audit fail on findings without an available fix
-        # too -- still useful as a CI signal.
-        run: pip-audit --requirement requirements.txt --disable-pip
+        # ``--disable-pip`` would require either a hashed requirements file
+        # or ``--no-deps``; we want full transitive scanning, so we let
+        # pip-audit use pip to resolve the dependency graph.
+        run: pip-audit --requirement requirements.txt
 
   # ---------------------------------------------------------------------------
   # 3. gitleaks -- secret leakage scan over the git history

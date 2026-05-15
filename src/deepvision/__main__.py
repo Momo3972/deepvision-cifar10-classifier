@@ -169,7 +169,7 @@ def train(
 @app.command()
 def serve(
     host: str = typer.Option(
-        "0.0.0.0",
+        "0.0.0.0",  # nosec B104 - bind-all is intentional inside containers; operators override via --host or DEEPVISION_API_HOST.
         "--host",
         help="Interface uvicorn binds to.",
     ),
@@ -213,7 +213,7 @@ def serve(
 @app.command()
 def streamlit(
     host: str = typer.Option(
-        "0.0.0.0",
+        "0.0.0.0",  # nosec B104 - bind-all is intentional inside containers; operators override via --host or DEEPVISION_STREAMLIT_HOST.
         "--host",
         "--server-address",
         help="Interface the Streamlit server binds to.",
