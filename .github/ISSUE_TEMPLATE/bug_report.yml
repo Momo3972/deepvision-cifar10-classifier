@@ -1,0 +1,82 @@
+name: Bug report
+description: Report a defect in the inference API, the Streamlit demo, the training pipeline, or the Docker stack.
+title: "[bug] "
+labels: ["bug", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The more we know upfront,
+        the faster we can fix it.
+
+  - type: input
+    id: version
+    attributes:
+      label: deepvision version
+      description: Output of `python -m deepvision version` (or the value of `__version__`).
+      placeholder: "0.10.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      description: Where does the bug happen?
+      options:
+        - api (FastAPI inference service)
+        - streamlit (demo UI)
+        - training (pipeline / MLflow)
+        - drift-monitor (Phase 8 exporter)
+        - docker / docker-compose
+        - cli (python -m deepvision ...)
+        - other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the buggy behaviour.
+      placeholder: When I do X, I see Y; I expected Z.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal commands or actions that reliably trigger the bug.
+      placeholder: |
+        1. `docker compose up -d`
+        2. `curl ...`
+        3. Observe ...
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / traceback
+      render: text
+
+  - type: input
+    id: env-os
+    attributes:
+      label: Host OS
+      placeholder: "Windows 11 22H2 / Ubuntu 24.04 / macOS 14.5"
+
+  - type: input
+    id: env-python
+    attributes:
+      label: Python version
+      placeholder: "3.12.5"
+
+  - type: input
+    id: env-docker
+    attributes:
+      label: Docker / Docker Desktop version (if applicable)
+      placeholder: "27.3.1 (Docker Desktop 4.34)"

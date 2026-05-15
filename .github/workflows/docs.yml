@@ -1,0 +1,104 @@
+# =============================================================================
+# .github/workflows/docs.yml -- Build & deploy docs to GitHub Pages (Phase 9).
+#
+# Phase 9 ships the workflow; Phase 11 (Documentation) will populate the
+# ``docs/`` directory and the ``mkdocs.yml`` configuration. Until then the
+# ``check-docs-source`` gate exits gracefully so this workflow never fails on
+# main, while staying ready to deploy as soon as the source files appear.
+# =============================================================================
+
+name: docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Detect whether the docs source is present yet (Phase 11 deliverable).
+  # ---------------------------------------------------------------------------
+  check-docs-source:
+    name: check docs source
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      ready: ${{ steps.detect.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: detect
+        name: Detect mkdocs configuration
+        run: |
+          if [ -f mkdocs.yml ] && [ -d docs ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Docs source detected; build will run."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "No mkdocs.yml or docs/ directory yet; skipping build (Phase 11 will populate)."
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 2. Build the static site with mkdocs-material.
+  # ---------------------------------------------------------------------------
+  build:
+    name: build mkdocs site
+    needs: check-docs-source
+    if: needs.check-docs-source.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            requirements-docs.txt
+
+      - name: Install mkdocs-material
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements-docs.txt ]; then
+            pip install -r requirements-docs.txt
+          else
+            pip install mkdocs-material mkdocstrings[python]
+          fi
+
+      - name: Build site
+        run: mkdocs build --strict --site-dir _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  # ---------------------------------------------------------------------------
+  # 3. Deploy to GitHub Pages (only on main).
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: deploy to GitHub Pages
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

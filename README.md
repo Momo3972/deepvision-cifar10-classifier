@@ -1,10 +1,11 @@
-# Classification d’Images CIFAR-10 · Deep Learning & Transfer Learning
+# DeepVision · CIFAR-10 · Pipeline MLOps Industriel
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python)
-![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-orange?style=for-the-badge&logo=tensorflow)
-![Keras](https://img.shields.io/badge/Keras-Transfer%20Learning-red?style=for-the-badge&logo=keras)
-![Streamlit](https://img.shields.io/badge/App-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit)
-![Status](https://img.shields.io/badge/Status-Terminé-green?style=for-the-badge)
+[![CI](https://github.com/Momo3972/deepvision-cifar10-classifier/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Momo3972/deepvision-cifar10-classifier/actions/workflows/ci.yml)
+[![Security](https://github.com/Momo3972/deepvision-cifar10-classifier/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/Momo3972/deepvision-cifar10-classifier/actions/workflows/security.yml)
+[![Coverage](https://codecov.io/gh/Momo3972/deepvision-cifar10-classifier/branch/main/graph/badge.svg)](https://codecov.io/gh/Momo3972/deepvision-cifar10-classifier)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/ghcr.io-deepvision--api%20%7C%20streamlit%20%7C%20training-2496ED?logo=docker&logoColor=white)](https://github.com/Momo3972/deepvision-cifar10-classifier/pkgs/container/deepvision-api)
 
 Ce projet présente un pipeline complet de Vision par Ordinateur appliqué au dataset académique CIFAR‑10.  
 Il compare trois architectures Deep Learning afin d’illustrer les gains obtenus grâce au Transfer Learning et à la Data Augmentation.

@@ -19,6 +19,76 @@ The roadmap is detailed in `Audit_DeepVision_CIFAR10.docx` (13 phases).
 
 ---
 
+## [0.10.0] — Phase 9 — CI/CD GitHub Actions (2026-05-14)
+
+End of the manual-PR era: every push to `main` and every pull request now
+triggers the four GitHub Actions workflows prescribed by the audit (section
+7.5). The previous "Checks 0" badge on every PR is replaced by green check
+marks from `ci`, `security` and (release-only) `docker` workflows.
+
+### Added — `.github/workflows/`
+- **`ci.yml`** — three parallel jobs on every push/PR to `main`:
+  - `lint` — `ruff check` + `ruff format --check` (Python 3.12, ~30 s).
+  - `typecheck` — `mypy src/deepvision` on a Python 3.11 + 3.12 matrix.
+  - `test` — `pytest -q` with coverage on the same matrix. Coverage XML
+    from the 3.12 entry is uploaded to Codecov for the README badge.
+  Uses `cancel-in-progress` concurrency so force-pushes don't burn stale
+  CI minutes.
+- **`security.yml`** — five scanners on every push/PR + a weekly Monday
+  06:00 UTC cron so newly disclosed CVEs are caught even when no code
+  changes:
+  - `bandit` (static analysis, MEDIUM+ severity), `pip-audit` (CVE on
+    resolved deps), `gitleaks` (secrets in git history), `codeql`
+    (GitHub native SAST with `security-and-quality` queries).
+  - `trivy` (container vuln scan) **only on tag `v*`** — building +
+    scanning the three ~3 GB images is too expensive for every push;
+    findings are uploaded as SARIF to the GitHub Security tab.
+- **`docker.yml`** — multi-stage build + push to GHCR
+  (`ghcr.io/momo3972/deepvision-{api,streamlit,training}`) on push to
+  `main` and on tag `v*`. PRs run a build-only validation pass.
+  Tags emitted: `latest` (default branch), `<short-sha>`, semver
+  `{major.minor}` + `{version}`. Auth uses the native `GITHUB_TOKEN`
+  (no manual secret). Buildx cache via `type=gha` for speed.
+- **`docs.yml`** — `mkdocs build --strict` + deploy to GitHub Pages.
+  Phase 11 will populate `docs/` and `mkdocs.yml`; until then the
+  `check-docs-source` gate exits gracefully so the workflow stays green
+  on `main`.
+
+### Added — `.github/`
+- **`dependabot.yml`** — three ecosystems tracked weekly on Monday at
+  06:00 UTC Europe/Paris: pip (with curated `ml-stack`, `serving-stack`
+  and `dev-tooling` groups so dependent bumps land in a single PR),
+  docker (the three Dockerfile bases) and github-actions (workflow SHA
+  pins). Each PR gets the `dependencies` label and a conventional
+  `chore(...)` commit prefix.
+- **`PULL_REQUEST_TEMPLATE.md`** — summary / related / type-of-change
+  checklist, quality gates checklist (ruff + mypy + pytest +
+  CHANGELOG), audit-alignment checklist for phase-delivery PRs, smoke
+  test field.
+- **`ISSUE_TEMPLATE/`** — four structured forms (bug_report,
+  feature_request, model_issue, drift_report — the last one wires up
+  with the Phase 8 monitoring), `config.yml` disables blank issues and
+  surfaces the audit + CHANGELOG as contact links.
+
+### Added — Documentation & tests
+- **`docs/contributing/branch-protection.md`** — operator guide for
+  configuring `main` branch protection rules in GitHub Settings
+  (required reviews, required status checks, linear history,
+  conversation resolution).
+- **`tests/unit/test_github_workflows.py`** — parses every `.github`
+  YAML artefact and asserts on the contract: four workflows exist
+  with the prescribed `name`, each declares the expected triggers and
+  jobs, `dependabot.yml` covers the three ecosystems, all five issue
+  templates parse, the PR template references the quality gates.
+
+### Changed — README
+- Badge row replaced. The legacy "Status: Terminé" sticker is gone;
+  six dynamic badges now reflect the real state: CI, Security, Codecov
+  coverage, Python 3.11 / 3.12 support, MIT licence, and a link to the
+  GHCR container packages.
+
+---
+
 ## [0.9.0] — Phase 8 — Monitoring & Drift (2026-05-10)
 
 The Phase 7 placeholder `drift-monitor` is replaced by a real Prometheus

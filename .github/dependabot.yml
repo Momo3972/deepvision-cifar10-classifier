@@ -1,0 +1,99 @@
+# =============================================================================
+# .github/dependabot.yml -- Automated dependency upgrades (Phase 9).
+#
+# Three ecosystems are tracked:
+#   * pip            -> requirements.txt + requirements-dev.txt
+#   * docker         -> the three Dockerfiles in docker/
+#   * github-actions -> the workflow files in .github/workflows/
+#
+# Schedule: weekly on Monday morning. Bundles dev-only and docker bumps into
+# small, reviewable PRs that the maintainer can merge in batches.
+# =============================================================================
+
+version: 2
+
+updates:
+  # ---------------------------------------------------------------------------
+  # 1. Python runtime + dev dependencies
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      ml-stack:
+        patterns:
+          - "tensorflow*"
+          - "keras*"
+          - "scipy"
+          - "scikit-learn"
+          - "numpy"
+          - "Pillow"
+        update-types: ["minor", "patch"]
+      serving-stack:
+        patterns:
+          - "fastapi"
+          - "uvicorn*"
+          - "pydantic*"
+          - "starlette"
+          - "httpx"
+          - "python-multipart"
+          - "prometheus-client"
+        update-types: ["minor", "patch"]
+      dev-tooling:
+        patterns:
+          - "ruff"
+          - "mypy"
+          - "pytest*"
+          - "hypothesis"
+          - "pre-commit"
+          - "bandit"
+          - "pip-audit"
+          - "types-*"
+        update-types: ["minor", "patch"]
+
+  # ---------------------------------------------------------------------------
+  # 2. Docker base images
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - docker
+    commit-message:
+      prefix: "chore(docker)"
+      include: scope
+
+  # ---------------------------------------------------------------------------
+  # 3. GitHub Actions workflows -- pin SHAs / bump minor versions
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "chore(actions)"
+      include: scope

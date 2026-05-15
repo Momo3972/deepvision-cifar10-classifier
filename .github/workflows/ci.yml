@@ -1,0 +1,140 @@
+# =============================================================================
+# .github/workflows/ci.yml -- Quality gates (Phase 9).
+#
+# Runs on every push to main and on every pull request targeting main.
+# Three independent jobs that can run in parallel:
+#
+#   * lint      -> ruff check + ruff format --check
+#   * typecheck -> mypy on src/deepvision (matrix: Python 3.11 + 3.12)
+#   * test      -> pytest with coverage upload to Codecov (matrix idem)
+#
+# Concurrency: a new push on the same branch cancels any in-flight CI run for
+# that branch -- avoids paying for stale CI minutes when force-pushing fixes.
+# =============================================================================
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Lint -- ruff (single Python; the linter does not depend on TF)
+  # ---------------------------------------------------------------------------
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install ruff
+        run: |
+          python -m pip install --upgrade pip
+          # Pin to the exact version declared in requirements-dev.txt so the
+          # CI matches what the user runs locally.
+          grep '^ruff==' requirements-dev.txt | xargs python -m pip install
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: ruff format --check
+        run: ruff format --check .
+
+  # ---------------------------------------------------------------------------
+  # 2. Typecheck -- mypy (matrix Python 3.11 + 3.12)
+  # ---------------------------------------------------------------------------
+  typecheck:
+    name: typecheck (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install runtime + dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: mypy src/deepvision
+        run: mypy src/deepvision
+
+  # ---------------------------------------------------------------------------
+  # 3. Test -- pytest with coverage (matrix Python 3.11 + 3.12)
+  # ---------------------------------------------------------------------------
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install runtime + dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Install the project itself
+        run: pip install --no-deps -e .
+
+      - name: pytest with coverage
+        run: |
+          pytest -q \
+            --cov=src/deepvision \
+            --cov-report=xml \
+            --cov-report=term
+
+      - name: Upload coverage to Codecov
+        # Only push to Codecov from one matrix entry to avoid double-counting.
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: deepvision-py312
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
