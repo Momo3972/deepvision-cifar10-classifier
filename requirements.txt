@@ -39,3 +39,13 @@ prometheus-client>=0.21,<1.0
 
 # --- Diagnostic local -----------------------------------------------------
 psutil==7.2.2
+
+# --- Export multi-runtime (Phase 10) --------------------------------------
+# tf2onnx converts a Keras / SavedModel graph into an ONNX file.
+# onnx is the format spec; onnxruntime is the CPU inference engine used by
+# the latency benchmark and by external consumers of the exported artefact.
+# Upper bounds intentionally loose (<2.0 / <3.0) so dependabot can ship
+# minor bumps without breaking the export pipeline.
+tf2onnx>=1.16,<2.0
+onnx>=1.16,<3.0
+onnxruntime>=1.18,<3.0

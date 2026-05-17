@@ -19,6 +19,109 @@ The roadmap is detailed in `Audit_DeepVision_CIFAR10.docx` (13 phases).
 
 ---
 
+## [0.11.0] — Phase 10 — Export ONNX/TFLite + benchmark latence (2026-05-17)
+
+Cross-runtime portability layer prescribed by the audit (sections 7.2 and
+9, Phase 10). The trained EfficientNetB0 can now be served through any
+of four runtimes — Keras, TensorFlow SavedModel, ONNX Runtime (CPU),
+TFLite (Full INT8) — and the new latency benchmark quantifies the
+trade-off on the operator's hardware before they pick a deployment
+target.
+
+### Added — `src/deepvision/export/`
+- **`onnx.py`** — `export_to_onnx(model, output_path, *, opset=17,
+  validate=True)`. Conversion runs through `tf2onnx.convert.from_keras`
+  with an explicit `input_signature` built from `model.input_shape`;
+  passing the signature is what makes the conversion robust on the
+  Keras 3 / TF 2.21 stack (the implicit graph-walking path occasionally
+  fails on EfficientNet's preprocessing BatchNormalization layers).
+  Every export ends with a forward-pass equivalence check that asserts
+  `max_abs_diff < 1e-4` between the Keras and ONNX Runtime outputs on
+  random inputs — a silently broken conversion can never escape CI.
+- **`tflite.py`** — `export_to_tflite(model, output_path, *,
+  quantization, representative_data, n_samples)` with four modes
+  exposed via the `QuantizationMode` `StrEnum`:
+  - `DYNAMIC` — weights INT8, activations FP32, no calibration needed.
+  - `INT8` (**default**) — weights + activations INT8, I/O FP32
+    (drop-in replacement for the FP32 model). Calibrates on 200
+    CIFAR-10 train images by default.
+  - `INT8_STRICT` — INT8 everywhere including I/O tensors (pure edge
+    deployment; caller handles quantization/dequantization).
+  - `FP16` — weights FP16 for GPU edge runtimes.
+- **`benchmark.py`** — `LatencyBenchmark` orchestrator running a
+  Cartesian product of `(runner, batch_size)` measurements. Four
+  pluggable runners satisfy the `Runner` protocol: `KerasRunner`,
+  `TFSavedModelRunner`, `OnnxRuntimeRunner` (single-threaded for
+  reproducibility), `TFLiteRunner` (auto-resizes tensors on shape
+  change). Each measurement reports p50 / p90 / p95 / p99 / mean / std
+  / throughput; the `to_dataframe()` helper produces a tidy pandas
+  table suitable for reports and MLflow logging.
+
+### Added — CLI (`python -m deepvision export ...`)
+- **`onnx`** — `--model-path`, `--output`, `--opset`, `--no-validate`.
+- **`tflite`** — `--model-path`, `--output`, `--quantization`,
+  `--n-samples`. For `int8` / `int8_strict` modes the command loads
+  CIFAR-10 automatically as the calibration source.
+- **`benchmark`** — accepts any combination of `--keras-path`,
+  `--savedmodel-dir`, `--onnx-path`, `--tflite-path`, plus
+  `--n-warmup`, `--n-iter`, `--batch-sizes`, `--output-csv`.
+
+### Added — Standalone scripts (`scripts/`)
+- **`export_onnx.py`**, **`quantize_tflite.py`**,
+  **`benchmark_latency.py`** — thin argparse wrappers around the
+  modules so they can be wired into shell pipelines or CI matrix jobs
+  without pulling Typer.
+
+### Added — Dependencies
+- `tf2onnx>=1.16,<2.0`, `onnx>=1.16,<3.0`, `onnxruntime>=1.18,<3.0` in
+  `requirements.txt`. Upper bounds left loose so Dependabot can ship
+  minor bumps without breaking the export pipeline.
+
+### Added — Tests (`tests/unit/test_export_{onnx,tflite,benchmark}.py`)
+- **50 new tests**, 97.58 % branch coverage on `src/deepvision/export/`
+  (target was ≥ 90 %). Highlights:
+  - `tflite.py`: 100 % coverage. All four quantization modes exercised
+    on a tiny CNN; INT8 round-trip checks argmax agreement ≥ 80 % vs
+    Keras; `INT8_STRICT` verifies the I/O tensors are emitted as
+    `int8`.
+  - `onnx.py`: 93.55 %. Real Keras → ONNX → ONNX Runtime round trip on
+    a tiny MLP with numerical equivalence asserted; opset persistence
+    verified by re-parsing the ONNX proto; shape-mismatch and tight
+    tolerance both raise as designed.
+  - `benchmark.py`: 97.73 %. Every runner exercised end-to-end against
+    a real exported artefact; `TFSavedModelRunner` validates the
+    signature-key priority (`"serve"` from Keras 3 wins over the
+    legacy `"serving_default"`, with a clean fallback to the first
+    available key); `LatencyBenchmark` input validation tested across
+    all four argument boundaries.
+
+### Fixed
+- **`TFSavedModelRunner` no longer hard-codes `"serving_default"`** —
+  Keras 3's `model.export()` writes the serving signature under the
+  `"serve"` key, which the original implementation didn't know about.
+  The runner now probes a priority list (`"serve"`,
+  `"serving_default"`) and falls back to the first available
+  signature, so it works on both legacy `tf.saved_model.save()`
+  outputs and Keras 3 `model.export()` outputs.
+
+### Changed
+- `pyproject.toml`: `version` bumped `0.10.0` → `0.11.0`.
+- `src/deepvision/__init__.py`: `__version__` bumped `0.10.0` → `0.11.0`.
+
+### Notes — Deferred warnings
+- The TFLite path emits a `UserWarning` from `tf.lite.Interpreter`
+  about deprecation in TF 2.20 (in favour of the upcoming `ai_edge_litert`
+  package). Migration is queued for the post-TF-2.20 dependabot bump;
+  the current API stays functional and produces bit-identical INT8
+  models.
+- A `DeprecationWarning` from Keras 3's `__array__` adapter surfaces
+  when `KerasRunner.predict()` converts the tensor back to NumPy. It
+  originates inside Keras itself (no caller-side fix possible) and
+  goes away with the NumPy 2.x compatibility shim shipped in Keras
+  3.15+.
+
+---
+
 ## [0.10.0] — Phase 9 — CI/CD GitHub Actions (2026-05-14)
 
 End of the manual-PR era: every push to `main` and every pull request now
