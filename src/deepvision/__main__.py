@@ -325,6 +325,275 @@ def drift_monitor(
     )
 
 
+# ---------------------------------------------------------------------------
+# `deepvision export ...`  -- Phase 10 sub-app
+# ---------------------------------------------------------------------------
+# Grouped under a sub-Typer so the three related commands (onnx / tflite /
+# benchmark) share a clean namespace and a single ``--help`` listing. Each
+# sub-command defers its heavy import (tensorflow, onnxruntime, ...) so
+# ``deepvision export --help`` returns instantly.
+
+export_app = typer.Typer(
+    name="export",
+    help="Export the trained model to ONNX/TFLite and benchmark latency.",
+    no_args_is_help=True,
+)
+app.add_typer(export_app, name="export")
+
+
+@export_app.command("onnx")
+def export_onnx_cmd(
+    model_path: str = typer.Option(
+        ...,
+        "--model-path",
+        "-m",
+        help="Path to the source .keras file or a SavedModel directory.",
+    ),
+    output: str = typer.Option(
+        ...,
+        "--output",
+        "-o",
+        help="Destination .onnx file.",
+    ),
+    opset: int = typer.Option(
+        17,
+        "--opset",
+        min=1,
+        max=22,
+        help="ONNX opset version. Default 17.",
+    ),
+    no_validate: bool = typer.Option(
+        False,
+        "--no-validate",
+        help="Skip the forward-pass equivalence check after export.",
+    ),
+) -> None:
+    """Convert a Keras model to ONNX.
+
+    Examples
+    --------
+    Export the trained EfficientNetB0::
+
+        python -m deepvision export onnx \\
+            --model-path models/efficientnet_best.keras \\
+            --output models/exports/efficientnet.onnx
+    """
+    # Heavy imports deferred so ``--help`` stays cheap.
+    from pathlib import Path
+
+    import tensorflow as tf
+
+    from deepvision.export.onnx import export_to_onnx
+
+    typer.echo(f"Loading Keras model from {model_path}")
+    model = tf.keras.models.load_model(model_path)
+
+    out_path = export_to_onnx(
+        model,
+        Path(output),
+        opset=opset,
+        validate=not no_validate,
+    )
+    typer.echo(f"ONNX export written to {out_path}")
+
+
+@export_app.command("tflite")
+def export_tflite_cmd(
+    model_path: str = typer.Option(
+        ...,
+        "--model-path",
+        "-m",
+        help="Path to the source .keras file or a SavedModel directory.",
+    ),
+    output: str = typer.Option(
+        ...,
+        "--output",
+        "-o",
+        help="Destination .tflite file.",
+    ),
+    quantization: str = typer.Option(
+        "int8",
+        "--quantization",
+        "-q",
+        help="Quantization mode: dynamic, int8, int8_strict, or fp16.",
+    ),
+    n_samples: int = typer.Option(
+        200,
+        "--n-samples",
+        min=1,
+        help="Representative dataset size for INT8 calibration.",
+    ),
+) -> None:
+    """Convert a Keras model to TFLite with optional quantization.
+
+    For ``int8`` / ``int8_strict`` modes the command loads CIFAR-10
+    train images automatically (via :func:`deepvision.data.loader.load_cifar10`)
+    and uses ``--n-samples`` of them as the representative dataset.
+
+    Examples
+    --------
+    Full INT8 export with 200 calibration images::
+
+        python -m deepvision export tflite \\
+            --model-path models/efficientnet_best.keras \\
+            --output models/exports/efficientnet_int8.tflite \\
+            --quantization int8
+
+    Quick dynamic-range export (no calibration needed)::
+
+        python -m deepvision export tflite \\
+            --model-path models/efficientnet_best.keras \\
+            --output models/exports/efficientnet_dyn.tflite \\
+            --quantization dynamic
+    """
+    from pathlib import Path
+
+    import tensorflow as tf
+
+    from deepvision.export.tflite import QuantizationMode, export_to_tflite
+
+    typer.echo(f"Loading Keras model from {model_path}")
+    model = tf.keras.models.load_model(model_path)
+
+    # Validate the mode early so we fail before the slow CIFAR-10 download.
+    mode = QuantizationMode(quantization)
+
+    representative_data = None
+    if mode in (QuantizationMode.INT8, QuantizationMode.INT8_STRICT):
+        from deepvision.data.loader import load_cifar10
+
+        typer.echo(f"Loading CIFAR-10 for the representative dataset (n_samples={n_samples})")
+        split = load_cifar10()
+        representative_data = split.x_train
+
+    out_path = export_to_tflite(
+        model,
+        Path(output),
+        quantization=mode,
+        representative_data=representative_data,
+        n_samples=n_samples,
+    )
+    typer.echo(f"TFLite export written to {out_path}")
+
+
+@export_app.command("benchmark")
+def benchmark_cmd(
+    keras_path: str = typer.Option(
+        "",
+        "--keras-path",
+        help="Path to a .keras file to benchmark with the Keras runtime.",
+    ),
+    savedmodel_dir: str = typer.Option(
+        "",
+        "--savedmodel-dir",
+        help="Path to a SavedModel directory to benchmark with the TF runtime.",
+    ),
+    onnx_path: str = typer.Option(
+        "",
+        "--onnx-path",
+        help="Path to a .onnx file to benchmark with ONNX Runtime (CPU).",
+    ),
+    tflite_path: str = typer.Option(
+        "",
+        "--tflite-path",
+        help="Path to a .tflite file to benchmark with the TFLite interpreter.",
+    ),
+    n_warmup: int = typer.Option(
+        100,
+        "--n-warmup",
+        min=0,
+        help="Warmup iterations per (runner, batch_size) pair.",
+    ),
+    n_iter: int = typer.Option(
+        1000,
+        "--n-iter",
+        min=1,
+        help="Measured iterations per (runner, batch_size) pair.",
+    ),
+    batch_sizes: str = typer.Option(
+        "1,8,32",
+        "--batch-sizes",
+        help="Comma-separated list of batch sizes to sweep.",
+    ),
+    output_csv: str = typer.Option(
+        "",
+        "--output-csv",
+        help="Optional CSV path to persist the result table.",
+    ),
+) -> None:
+    """Benchmark inference latency across the available runtimes.
+
+    Pass any combination of ``--keras-path``, ``--savedmodel-dir``,
+    ``--onnx-path`` and ``--tflite-path``; the command benchmarks every
+    runtime that was given a path. At least one is required.
+
+    Examples
+    --------
+    Four-way comparison::
+
+        python -m deepvision export benchmark \\
+            --keras-path models/efficientnet_best.keras \\
+            --savedmodel-dir models/exports/efficientnet_savedmodel \\
+            --onnx-path models/exports/efficientnet.onnx \\
+            --tflite-path models/exports/efficientnet_int8.tflite \\
+            --output-csv reports/phase10_benchmark.csv
+    """
+    from pathlib import Path
+
+    from deepvision.export.benchmark import (
+        KerasRunner,
+        LatencyBenchmark,
+        OnnxRuntimeRunner,
+        Runner,
+        TFLiteRunner,
+        TFSavedModelRunner,
+        to_dataframe,
+    )
+
+    bs_list = [int(x.strip()) for x in batch_sizes.split(",") if x.strip()]
+    if not bs_list:
+        raise typer.BadParameter("--batch-sizes must contain at least one positive integer.")
+
+    runners: list[Runner] = []
+    if keras_path:
+        runners.append(KerasRunner(keras_path))
+    if savedmodel_dir:
+        runners.append(TFSavedModelRunner(savedmodel_dir))
+    if onnx_path:
+        runners.append(OnnxRuntimeRunner(onnx_path))
+    if tflite_path:
+        runners.append(TFLiteRunner(tflite_path))
+
+    if not runners:
+        raise typer.BadParameter(
+            "At least one of --keras-path, --savedmodel-dir, --onnx-path, --tflite-path "
+            "must be provided."
+        )
+
+    typer.echo(
+        f"Running benchmark: {len(runners)} runtime(s) x {len(bs_list)} batch size(s) "
+        f"x {n_iter} iterations (after {n_warmup} warmup)."
+    )
+
+    bench = LatencyBenchmark(
+        runners=runners,
+        n_warmup=n_warmup,
+        n_iter=n_iter,
+        batch_sizes=bs_list,
+    )
+    results = bench.run()
+    df = to_dataframe(results)
+
+    typer.echo("")
+    typer.echo(df.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
+
+    if output_csv:
+        out = Path(output_csv)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(out, index=False)
+        typer.echo(f"\nResults written to {out}")
+
+
 def main() -> None:  # pragma: no cover -- entrypoint
     """Entrypoint used by ``python -m deepvision`` and console scripts."""
     app()
