@@ -16,7 +16,7 @@ keras==3.14.1
 # --- Numerique & scientifique ---------------------------------------------
 numpy==2.4.4
 scikit-learn==1.8.0
-scipy>=1.13,<2.0  # used in deepvision.evaluation.calibration.fit_temperature
+scipy>=1.17.1,<2.0  # used in deepvision.evaluation.calibration.fit_temperature
 
 # --- Imagerie -------------------------------------------------------------
 Pillow==12.2.0
