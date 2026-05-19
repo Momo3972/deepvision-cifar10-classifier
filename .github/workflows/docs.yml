@@ -84,7 +84,7 @@ jobs:
       - name: Build site
         run: mkdocs build --strict --site-dir _site
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
