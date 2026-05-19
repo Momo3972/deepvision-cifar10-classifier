@@ -28,3 +28,17 @@ pre-commit>=4.0,<5.0
 # --- Security ---------------------------------------------------------------
 bandit>=1.7,<2.0
 pip-audit>=2.7,<3.0
+
+# --- Documentation (Phase 11) -----------------------------------------------
+# Material theme + static i18n for the bilingual EN/FR site, mkdocstrings
+# for auto-generated API reference from NumPy-style docstrings, plus the
+# helper plugins that keep the navigation in sync with the docs/ folder.
+# Upper bounds left loose so Dependabot can ship minor bumps without
+# breaking the docs build.
+mkdocs-material>=9.5,<10.0
+mkdocs-static-i18n>=1.2,<2.0
+mkdocstrings[python]>=0.26,<1.0
+mkdocs-gen-files>=0.5,<1.0
+mkdocs-literate-nav>=0.6,<1.0
+mkdocs-section-index>=0.3,<1.0
+pymdown-extensions>=10.7,<11.0

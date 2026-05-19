@@ -153,11 +153,21 @@ def test_validate_returns_zero_drift_on_clean_export(tiny_model, tmp_path: Path)
 
 
 def test_validate_raises_on_tight_tolerance(tiny_model, tmp_path: Path) -> None:
-    """A tolerance tighter than FP32 round-off must fail loudly."""
+    """A tolerance tighter than FP32 round-off must fail loudly.
+
+    Implementation note: a *negative* tolerance forces the guard to
+    fire regardless of numerical luck. On some Python + tf2onnx
+    combinations (e.g. CPython 3.12 + tf2onnx 1.17) the tiny MLP is so
+    trivial that the conversion is *bit-identical* and
+    ``max_abs_diff == 0.0``, so a tolerance of ``0.0`` would *not*
+    fire (``0.0 > 0.0`` is ``False``). Using ``-1.0`` makes the test
+    deterministic across runtimes while still exercising the failure
+    path of the validator.
+    """
     output = tmp_path / "tiny.onnx"
     export_to_onnx(tiny_model, output, validate=False)
     with pytest.raises(AssertionError, match="max_abs_diff"):
-        _validate_onnx_export(tiny_model, output, tolerance=0.0)
+        _validate_onnx_export(tiny_model, output, tolerance=-1.0)
 
 
 # ---------------------------------------------------------------------------

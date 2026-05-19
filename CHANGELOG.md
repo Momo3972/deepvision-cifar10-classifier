@@ -19,6 +19,137 @@ The roadmap is detailed in `Audit_DeepVision_CIFAR10.docx` (13 phases).
 
 ---
 
+## [0.12.0] — Phase 11 — Documentation (mkdocs-material, bilingue EN/FR) (2026-05-17)
+
+Phase 11 of the industrial refactor roadmap (audit section 7.6). The
+project gets a real documentation site, published on GitHub Pages from
+`main`, served bilingual (English + French) with a language switcher
+in the header. The `docs.yml` workflow that has been in graceful-skip
+mode since Phase 9 now detects `mkdocs.yml` and builds + deploys on
+every push to `main`.
+
+### Added — `mkdocs.yml` and tooling
+- **`mkdocs.yml`** -- single source of truth for the site: Material
+  theme with light/dark palette toggle, JetBrains Mono + Roboto fonts,
+  navigation tabs / instant-back-to-top / search suggest, mkdocstrings
+  Python handler configured for NumPy-style docstrings, the
+  `pymdownx.*` family of extensions (admonitions, tabbed content,
+  fenced code annotations, Mermaid diagrams, footnotes).
+- **`mkdocs-static-i18n` plugin** -- bilingual EN/FR with the
+  `suffix` strategy: `page.md` for English (default), `page.fr.md`
+  for the French variant. Navigation labels translate via the
+  `nav_translations` map; the search index is reconfigured to handle
+  both locales.
+- **`mkdocstrings[python]` plugin** -- auto-generated API reference
+  from the 300+ NumPy-style docstrings already present in
+  `src/deepvision/`. The reference page lists 14 modules grouped by
+  feature area.
+
+### Added — `docs/` content (English, default)
+- **`index.md`** -- homepage with hero, feature grid, project status
+  matrix tracking the 12 phases.
+- **`getting-started.md`** -- full installation walkthrough,
+  configuration via env vars, training / serving / Docker happy paths.
+- **`architecture.md`** -- system diagram (Mermaid), source-tree map,
+  runtime topology of the six-service Docker stack, data flow
+  narratives.
+- **`tutorials/{index,training,serving,monitoring,export}.md`** --
+  four task-oriented walkthroughs with snippets, common pitfalls
+  callouts, and cross-links into the API reference.
+- **`reference/index.md`** -- auto-generated API documentation for
+  14 modules across config / data / models / training / evaluation /
+  serving / monitoring / export.
+- **`model-card.md`** -- Hugging Face-template model card with all
+  prescribed sections: Model Details, Intended Use, Out-of-Scope
+  Uses, Bias / Risks / Limitations, How to Get Started, Training
+  Details (data + procedure + speeds-sizes-times), Evaluation
+  Metrics + Per-Class Confusions, Environmental Impact, Technical
+  Specifications, Citation.
+- **`contributing.md`** -- branching model, local quality gates,
+  Conventional Commits convention, Dependabot triage rules, code
+  of conduct.
+
+### Added — `docs/` content (French translations)
+- **Full translations** of the homepage (`index.fr.md`), the getting
+  started page (`getting-started.fr.md`) and the model card
+  (`model-card.fr.md`) -- the three most visible pages.
+- **Bilingual placeholders** for the architecture, contributing,
+  reference and four tutorial pages: short French intro + summary
+  table + "see English version" call-to-action button. Keeps the
+  language switcher functional everywhere without doubling the
+  maintenance load on detail-heavy pages.
+- **`reference/index.fr.md`** explicitly redirects to the English
+  API reference to avoid duplicating mkdocstrings output (which
+  would clash with the global autorefs index).
+
+### Added — `README.md` updates
+- **Language switcher block** at the top right linking to the EN and
+  FR landings of the published site.
+- **`Docs` badge** wired to the `docs.yml` workflow.
+- **"Full documentation -- bilingual EN/FR" block** with a call-out
+  pointing to the published GitHub Pages site.
+- **Bilingual `🇫🇷 Présentation` / `🇬🇧 Overview`** intro paragraphs.
+- Existing French README content preserved -- the site is now the
+  canonical detailed documentation, README stays as a high-level
+  overview.
+
+### Added — Tests (`tests/unit/test_documentation.py`)
+- **26 new structural tests** validating: `mkdocs.yml` parses to a
+  valid Material config; theme palette exposes both `default` and
+  `slate` schemes; `navigation.instant` is *not* enabled (would
+  break the i18n switcher); required plugins (`search`, `i18n`,
+  `mkdocstrings`) are declared; the `i18n` plugin declares EN and
+  FR with EN as default; mkdocstrings uses NumPy docstring style;
+  every page in the `nav` exists on disk; the 11 required EN pages
+  exist; the 11 required FR variants exist and are not empty; the
+  model card has every Hugging Face top-level section; the README
+  links to the docs site, has the language switcher, and exposes
+  the docs badge.
+
+### Added — Dependencies (`requirements-dev.txt`)
+- `mkdocs-material>=9.5,<10.0`
+- `mkdocs-static-i18n>=1.2,<2.0`
+- `mkdocstrings[python]>=0.26,<1.0`
+- `mkdocs-gen-files>=0.5,<1.0`
+- `mkdocs-literate-nav>=0.6,<1.0`
+- `mkdocs-section-index>=0.3,<1.0`
+- `pymdown-extensions>=10.7,<11.0`
+
+### Fixed
+- **Dead cross-reference** `validate_image_bytes` -- the actual
+  function in `deepvision.serving.preprocess` is `validate_payload_size`.
+  Two markdown pages (`architecture.md`, `tutorials/serving.md`)
+  fixed.
+
+### Changed
+- `pyproject.toml`: `version` bumped `0.11.0` -> `0.12.0`.
+- `src/deepvision/__init__.py`: `__version__` bumped `0.11.0` -> `0.12.0`.
+
+### Notes
+- Build is **`--strict`-clean**: `mkdocs build --strict` succeeds in
+  ~5 seconds on the standard runner with zero warnings (only the
+  Material team's marketing notice about the upcoming MkDocs 2.0
+  re-architecture, which is informational, not a warning).
+- Some `INFO`-level messages surface on relative links from FR pages
+  pointing to the EN site (`../reference/`, `../training/`, ...).
+  These are intentional: from the published FR site, those links
+  resolve to the EN sibling page so users keep their language choice
+  when crossing into pages that have no full French translation yet.
+
+### Known issues
+- **Two new `mlflow 2.22.5` CVEs** surfaced after Phase 9 closed:
+  `CVE-2026-2393` (fix in mlflow 3.9.0) and `CVE-2026-2614` (fix in
+  mlflow 3.10.0). Both are scoped to the MLflow Server UI / REST
+  surface, which our deployment exposes only on the internal
+  `deepvision` Docker network -- it never reaches untrusted callers,
+  so the practical risk is nil. Added to `pip-audit --ignore-vuln`
+  in `.github/workflows/security.yml`. The mlflow 3.x bump that
+  resolves them all is queued as a follow-up PR (it is a major
+  version bump and requires migrating away from the deprecated
+  Models API).
+
+---
+
 ## [0.11.0] — Phase 10 — Export ONNX/TFLite + benchmark latence (2026-05-17)
 
 Cross-runtime portability layer prescribed by the audit (sections 7.2 and

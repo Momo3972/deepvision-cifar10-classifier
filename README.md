@@ -1,14 +1,38 @@
-# DeepVision · CIFAR-10 · Pipeline MLOps Industriel
+# DeepVision · CIFAR-10 · Industrial MLOps Pipeline
+
+<p align="right">
+  <a href="https://momo3972.github.io/deepvision-cifar10-classifier/">🇬🇧 English</a> ·
+  <a href="https://momo3972.github.io/deepvision-cifar10-classifier/fr/">🇫🇷 Français</a>
+</p>
 
 [![CI](https://github.com/Momo3972/deepvision-cifar10-classifier/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Momo3972/deepvision-cifar10-classifier/actions/workflows/ci.yml)
 [![Security](https://github.com/Momo3972/deepvision-cifar10-classifier/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/Momo3972/deepvision-cifar10-classifier/actions/workflows/security.yml)
+[![Docs](https://github.com/Momo3972/deepvision-cifar10-classifier/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/Momo3972/deepvision-cifar10-classifier/actions/workflows/docs.yml)
 [![Coverage](https://codecov.io/gh/Momo3972/deepvision-cifar10-classifier/branch/main/graph/badge.svg)](https://codecov.io/gh/Momo3972/deepvision-cifar10-classifier)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/ghcr.io-deepvision--api%20%7C%20streamlit%20%7C%20training-2496ED?logo=docker&logoColor=white)](https://github.com/Momo3972/deepvision-cifar10-classifier/pkgs/container/deepvision-api)
 
+> **📖 Full documentation -- bilingual EN/FR:**  
+> 👉 <https://momo3972.github.io/deepvision-cifar10-classifier/>
+>
+> The site covers: architecture, getting started, four tutorials
+> (training / serving / monitoring / export-benchmark), the API
+> reference (auto-generated from NumPy-style docstrings), the
+> Hugging Face-format model card, and the contributing guide. The
+> README below stays as a high-level overview.
+
+---
+
+## 🇫🇷 Présentation (Français)
+
 Ce projet présente un pipeline complet de Vision par Ordinateur appliqué au dataset académique CIFAR‑10.  
-Il compare trois architectures Deep Learning afin d’illustrer les gains obtenus grâce au Transfer Learning et à la Data Augmentation.
+Il compare trois architectures Deep Learning afin d'illustrer les gains obtenus grâce au Transfer Learning et à la Data Augmentation.
+
+## 🇬🇧 Overview (English)
+
+This project showcases a complete computer-vision pipeline applied to the CIFAR-10 academic dataset.  
+It compares three deep learning architectures to illustrate the gains brought by transfer learning and data augmentation.
 
 ---
 
