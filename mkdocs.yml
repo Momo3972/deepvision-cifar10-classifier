@@ -1,0 +1,225 @@
+# ============================================================================
+# mkdocs.yml -- deepvision-cifar10-classifier documentation site
+#
+# Built by Phase 11 of the industrial refactor roadmap (audit section 7.6).
+# The site is published to GitHub Pages on every push to `main` by the
+# `.github/workflows/docs.yml` workflow (was in graceful-skip mode until
+# this file landed).
+#
+# Local preview:
+#     mkdocs serve            # http://127.0.0.1:8000/
+#
+# Production build:
+#     mkdocs build --strict   # fails on broken links / missing pages
+# ============================================================================
+
+site_name: DeepVision -- CIFAR-10
+site_description: >
+  Industrial Computer Vision pipeline on CIFAR-10. Compares MLP, custom CNN
+  and EfficientNetB0 (transfer learning) with a full MLOps lifecycle:
+  MLflow tracking, FastAPI serving, Docker, drift monitoring and CI/CD.
+site_author: Mohamed Lamine OULD BOUYA
+site_url: https://momo3972.github.io/deepvision-cifar10-classifier/
+
+repo_name: Momo3972/deepvision-cifar10-classifier
+repo_url: https://github.com/Momo3972/deepvision-cifar10-classifier
+edit_uri: edit/main/docs/
+
+copyright: >
+  Copyright &copy; 2025-2026 Mohamed Lamine OULD BOUYA -- MIT License
+
+# ---------------------------------------------------------------------------
+# Theme -- Material for MkDocs
+# ---------------------------------------------------------------------------
+# Light / dark palette toggle, Roboto fonts, code annotations, table of
+# contents permalinks, language switcher in the header.
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: JetBrains Mono
+  icon:
+    logo: material/eye-circle
+    repo: fontawesome/brands/github
+  features:
+    # ``navigation.instant`` deliberately disabled: it conflicts with the
+    # mkdocs-static-i18n language switcher contextual link (the switcher
+    # would forget the current page when toggling between EN and FR).
+    - navigation.tracking        # URL hash follows current heading
+    - navigation.tabs            # top-level tabs in header
+    - navigation.tabs.sticky     # tabs stick when scrolling
+    - navigation.sections        # group nav by section
+    - navigation.indexes         # section index pages
+    - navigation.top             # back-to-top button
+    - navigation.footer          # prev/next links in footer
+    - search.suggest             # autocomplete in search
+    - search.highlight           # highlight matches on the page
+    - search.share               # share-link to a search result
+    - toc.follow                 # TOC scrolls with the page
+    - content.code.copy          # copy button on code blocks
+    - content.code.annotate      # in-code numbered annotations
+    - content.tabs.link          # link grouped tabs across pages
+    - content.tooltips           # rich tooltips on links
+    - header.autohide            # auto-hide header on scroll
+
+# ---------------------------------------------------------------------------
+# Plugins
+# ---------------------------------------------------------------------------
+plugins:
+  # Built-in full-text search (fast on small sites, indexes both EN and FR).
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+
+  # Bilingual EN + FR via the `suffix` strategy:
+  #   docs/index.md       (default = English)
+  #   docs/index.fr.md    (French variant)
+  # The language switcher appears in the header automatically.
+  - i18n:
+      docs_structure: suffix
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+          site_name: DeepVision -- CIFAR-10
+        - locale: fr
+          name: Français
+          build: true
+          site_name: DeepVision -- CIFAR-10
+          nav_translations:
+            Home: Accueil
+            Getting started: Démarrage rapide
+            Architecture: Architecture
+            Tutorials: Tutoriels
+            Training: Entraînement
+            Serving: Service d'inférence
+            Monitoring: Supervision
+            Export & benchmark: Export & benchmark
+            API reference: Référence API
+            Model card: Fiche modèle
+            Contributing: Contribuer
+            Branch protection: Protection des branches
+
+  # Auto-generated API reference from NumPy-style docstrings.
+  # We use the Python handler from mkdocstrings with the `google` style
+  # variant configured to read NumPy-format docstrings.
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            docstring_section_style: table
+            show_root_heading: true
+            show_root_full_path: false
+            show_source: true
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 88
+            merge_init_into_class: true
+            members_order: source
+            filters:
+              - "!^_"          # hide private helpers
+              - "!^__"         # but keep dunder __init__ via merge_init_into_class
+
+# ---------------------------------------------------------------------------
+# Markdown extensions
+# ---------------------------------------------------------------------------
+# The pymdownx.* family pulls in admonitions (note/tip/warning blocks),
+# tabbed content, syntax-highlighted code with line numbers, embedded
+# Mermaid diagrams, footnotes, and details/summary collapsibles.
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# ---------------------------------------------------------------------------
+# Navigation -- single source of truth
+# ---------------------------------------------------------------------------
+# We list every page explicitly rather than relying on the auto-generated
+# nav so:
+#   1. the FR translations in the `i18n` plugin can map English titles
+#      to French (see `nav_translations` above),
+#   2. the section ordering reflects the user journey rather than the
+#      alphabetical filename order.
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Architecture: architecture.md
+  - Tutorials:
+      - tutorials/index.md
+      - Training: tutorials/training.md
+      - Serving: tutorials/serving.md
+      - Monitoring: tutorials/monitoring.md
+      - Export & benchmark: tutorials/export.md
+  - API reference: reference/index.md
+  - Model card: model-card.md
+  - Contributing:
+      - contributing.md
+      - Branch protection: contributing/branch-protection.md
+
+# ---------------------------------------------------------------------------
+# Extra
+# ---------------------------------------------------------------------------
+# Hook social icons into the footer. We deliberately do NOT enable the
+# ``mike`` version provider: a portfolio project lives off the latest
+# ``main`` revision, and a version dropdown that points at a single
+# version would be noise.
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Momo3972/deepvision-cifar10-classifier
+      name: deepvision-cifar10-classifier on GitHub
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/mohamed-lamine-ould-bouya
+      name: Mohamed Lamine OULD BOUYA on LinkedIn
+  generator: true  # show "Made with Material for MkDocs" in the footer
